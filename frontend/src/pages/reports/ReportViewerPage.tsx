@@ -90,8 +90,8 @@ export default function ReportViewerPage() {
         const savedFilters =
             viewId && report
                 ? loadSavedViews().find(
-                      (x) => x.id === viewId && x.slug === report.slug,
-                  )?.filters
+                    (x) => x.id === viewId && x.slug === report.slug,
+                )?.filters
                 : undefined;
         const init: Record<string, string> = {};
         report.filters.forEach((f) => {
