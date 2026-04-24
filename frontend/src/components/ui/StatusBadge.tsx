@@ -22,6 +22,9 @@ const STATUS_MAP: Record<string, BadgeProps['tone']> = {
     'On Hold': 'orange',
     'Low Stock': 'amber',
     'Out of Stock': 'red',
+    Expired: 'neutral',
+    Rejected: 'red',
+    'Revision Requested': 'amber',
 };
 
 export interface StatusBadgeProps {

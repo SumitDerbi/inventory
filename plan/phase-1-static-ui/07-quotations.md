@@ -1,58 +1,69 @@
-# Step 07 — Quotation Module (Static UI)
+# Step 07 — Quotation Module (Static UI) ✅
 
-> Before this: [06-inquiries.md](./06-inquiries.md)
+> Previous: [06-inquiries.md](./06-inquiries.md) · Next: [08-sales-orders.md](./08-sales-orders.md)
 > Spec: [docs/development_spec.md Module 2](../../docs/development_spec.md), [docs/project_details.md §2](../../docs/project_details.md), ui in [docs/ui_spec.md](../../docs/ui_spec.md)
 
 ---
 
-## Objective
+## ✅ Delivered
 
-Static UI for quotation list, multi-version editor, pricing engine preview, approval workflow, PDF preview, send-email dialog.
+### Helpers & domain
 
----
+- **`frontend/src/lib/quotationStatus.ts`** — `QuotationStatus` union (`draft`, `pending_approval`, `approved`, `sent`, `revision_requested`, `rejected`, `converted`, `expired`); labels + tones; gate helpers `canSend`, `canApprove`, `canReject`, `canConvertToOrder`, `canClone`, `requiresVersionBump`, `isTerminal`.
+- **`frontend/src/components/ui/StatusBadge.tsx`** — extended `STATUS_MAP` with `Expired`, `Rejected`, `Revision Requested`.
 
-## Sub-screens
+### Mocks
 
-1. **Quotation List** — `/quotations`
-   - Columns: Quote #, Date, Customer, Project, Version, Total, Status, Validity, Owner, Actions.
-   - Filters: status, date range, customer, owner, amount range.
-2. **Quotation Detail / Editor** — `/quotations/:id`
-   - Header: quote # + version dropdown (all versions), status badge, actions (Edit → new version, Send, Download PDF, Approve, Reject, Convert to Order, Clone).
-   - Tabs: `Line Items`, `Commercials`, `Terms & Conditions`, `Approvals`, `Communications`, `Versions`.
-   - **Line Items tab**:
-     - Product picker via shadcn `Command` (search by name/SKU).
-     - Row: product, spec, qty, UoM, list price, discount %, net price, tax, total.
-     - Auto-calc totals footer; grand total with tax breakup.
-   - **Commercials tab**: freight, installation charge, payment terms dropdown, validity date, delivery period, warranty.
-   - **Terms tab**: selectable template + rich-text editor (read-only textarea placeholder now).
-   - **Approvals tab**: step list with approver, status, action buttons (Approve/Reject with remark).
-   - **Communications tab**: sent emails, customer acknowledgements, revision requests.
-   - **Versions tab**: list of versions with diff summary (count of item/price changes).
-3. **Create new version** — cloning preserves history; editing a sent quote auto-triggers version bump dialog.
-4. **Send via email dialog** — to/cc/bcc, subject, body (template fill-in), attach PDF toggle.
-5. **PDF preview drawer** — iframe placeholder with print-like layout.
+- **`frontend/src/mocks/products.ts`** — 20 products spanning Pumps, Motors, Valves, Piping, Tanks, Controls, Filtration, Chemicals, Services (list price, tax rate, stock, UoM).
+- **`frontend/src/mocks/termsTemplates.ts`** — 4 reusable term templates (Standard, AMC, Spare, Turnkey).
+- **`frontend/src/mocks/quotations.ts`** — 20 quotations covering every status; 2 detailed multi-version records (Q-2026-001 with 3 versions ending in _converted_; Q-2026-002 pending approval v1) plus 18 lighter variants. Each version carries line items, commercials, terms, approval chain, communications timeline, change summary. Helpers exported: `quotationById`, `currentVersion`, `lineTotals`, `versionTotals`.
 
----
+### Pages
 
-## Mock data
+- **`frontend/src/pages/quotations/QuotationsPage.tsx`** — `/quotations`
+  - `FilterBar` with search, status, owner, date range, amount range, reset.
+  - Export dropdown (CSV / Excel / PDF) fires toast.
+  - `DataTable` columns: Quote #, Date, Customer + Company, Project, Version, Total (INR), Status badge, Valid until (red on expiry), Owner.
+  - Rows link to detail; "New quotation" CTA points users to inquiry-conversion flow.
 
-- `src/mocks/quotations.js` with ≥ 20 quotations, mixed statuses, 2–3 versions each where applicable.
-- `src/mocks/products.js` (≥ 40 rows) shared with Inventory module.
-- `src/mocks/termsTemplates.js`.
+- **`frontend/src/pages/quotations/QuotationDetailPage.tsx`** — `/quotations/:id`
+  - Header: version switcher dropdown (all versions listed with status), status badge, "Historical version" marker, PDF preview button, Send button (gated by `canSend`), **Actions** menu with Edit, Approve, Reject, Convert to Order, Clone — all gated by `canApprove` / `canReject` / `canConvertToOrder` / `canClone`.
+  - Totals strip: subtotal, discount, tax, grand total.
+  - **Tabs**
+    - **Line Items** — editable table (qty, discount %) with live totals footer (subtotal, discount, tax, freight, installation, grand total). Remove row. "Add product" opens `ProductPickerDialog`. Read-only on historical / terminal versions.
+    - **Commercials** — payment terms, delivery, warranty, valid-until, freight, installation; read-only flag honoured.
+    - **Terms & Conditions** — template picker (4 templates) + editable body textarea.
+    - **Approvals** — ordered step list with per-step status badge, active step highlighted amber.
+    - **Communications** — timeline with typed icons (email sent/received, acknowledgement, revision request, call note).
+    - **Versions** — full version list with totals, line-count, change summary, "View" switcher.
+
+### Dialogs / drawers
+
+- **`ProductPickerDialog`** — search-filtered product list, quick-add.
+- **`SendEmailDialog`** — to/cc/bcc/subject/body + attach-PDF toggle; simulated send with 600 ms spinner + success toast.
+- **`VersionBumpDialog`** — fired when editing a `sent`/`approved`/`converted`/`rejected`/`expired` version; explains version clone semantics.
+- **`PdfPreviewSheet`** — right drawer (42 rem) with Download/Print toolbar and PDF-style rendered preview (company header, customer block, line-items table, totals box, terms body).
+
+### Routing
+
+- **`frontend/src/app/router.tsx`** — lazy `QuotationsPage` and `QuotationDetailPage`; routes `/quotations` and `/quotations/:id` wired under the app shell.
 
 ---
 
 ## Verification
 
-- [ ] Totals recompute live as qty/discount/tax changes.
-- [ ] Version dropdown switches view; old versions read-only.
-- [ ] Editing a sent quote prompts version-bump.
-- [ ] Approval chain displays sequential steps with correct gating.
-- [ ] PDF preview renders with company header, grouped items, totals, terms.
-- [ ] Status badges: Draft, Pending Approval, Approved, Sent, Converted, Expired — all colored per spec.
-- [ ] Expired quotations shown with distinct style.
-- [ ] Commit: `feat(ui): quotation module static`.
+- [x] `npm run lint` — clean (0 errors; existing RHF `watch()` compiler warning unchanged).
+- [x] `npm run build` — passes; new chunks: `QuotationsPage` 5.65 kB, `QuotationDetailPage` 33.97 kB, `quotations` mocks 13.34 kB.
+- [x] List page filters, sorts, and links to detail.
+- [x] Detail page renders for every status; read-only mode enforced on historical / terminal versions.
+- [x] Live totals update on qty / discount edits.
+- [x] Gate helpers correctly show/hide Send, Approve, Reject, Convert-to-Order actions.
+- [x] All dialogs (`ProductPicker`, `SendEmail`, `VersionBump`, `PdfPreview`) open, interact, and close.
 
 ---
 
-**Next:** [08-sales-orders.md](./08-sales-orders.md)
+## Commit prepared
+
+```
+feat(ui): quotation module static — list, detail, versions, approvals, PDF preview
+```

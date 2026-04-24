@@ -58,5 +58,8 @@
 - [x] Follow-up dialog uses `followUpSchema` which rejects past timestamps.
 - [x] `npm run lint` — clean (only pre-existing RHF `watch()` compiler warning).
 - [x] `npm run build` — success (InquiryDetailPage 24.5 kB, InquiryFormDrawer 27.5 kB).
+- [x] Commit: `feat(ui): inquiry module static`.
 
-Commit: `feat(ui): inquiry module static`.
+---
+
+**Next:** [07-sales-orders.md](./07-quotations.md)
