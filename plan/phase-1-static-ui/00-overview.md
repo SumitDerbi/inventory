@@ -9,7 +9,7 @@
 | #   | Step                                                     | Status |
 | --- | -------------------------------------------------------- | ------ |
 | 01  | [Project setup & tooling](./01-setup.md)                 | ✅     |
-| 02  | [Design system & tokens](./02-design-system.md)          | ☐      |
+| 02  | [Design system & tokens](./02-design-system.md)          | ✅     |
 | 03  | [App shell (sidebar, topbar, router)](./03-app-shell.md) | ☐      |
 | 04  | [Auth screens (login, forgot)](./04-auth.md)             | ☐      |
 | 05  | [Executive dashboard](./05-dashboard.md)                 | ☐      |
