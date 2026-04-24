@@ -22,7 +22,21 @@ const QuotationDetailPage = lazy(
 );
 const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'));
 const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'));
-const InventoryPage = lazy(() => import('@/pages/inventory/InventoryPage'));
+const InventoryLayout = lazy(() => import('@/pages/inventory/InventoryLayout'));
+const ProductsListPage = lazy(
+    () => import('@/pages/inventory/ProductsListPage'),
+);
+const ProductDetailPage = lazy(
+    () => import('@/pages/inventory/ProductDetailPage'),
+);
+const AdjustmentsPage = lazy(
+    () => import('@/pages/inventory/AdjustmentsPage'),
+);
+const WarehousesPage = lazy(() => import('@/pages/inventory/WarehousesPage'));
+const ReorderPage = lazy(() => import('@/pages/inventory/ReorderPage'));
+const ReservationsPage = lazy(
+    () => import('@/pages/inventory/ReservationsPage'),
+);
 const DispatchPage = lazy(() => import('@/pages/dispatch/DispatchPage'));
 const JobsPage = lazy(() => import('@/pages/jobs/JobsPage'));
 const DocumentsPage = lazy(() => import('@/pages/documents/DocumentsPage'));
@@ -52,7 +66,19 @@ export const router = createBrowserRouter([
             { path: 'quotations/:id', element: <QuotationDetailPage /> },
             { path: 'orders', element: <OrdersPage /> },
             { path: 'orders/:id', element: <OrderDetailPage /> },
-            { path: 'inventory', element: <InventoryPage /> },
+            {
+                path: 'inventory',
+                element: <InventoryLayout />,
+                children: [
+                    { index: true, element: <Navigate to="products" replace /> },
+                    { path: 'products', element: <ProductsListPage /> },
+                    { path: 'products/:id', element: <ProductDetailPage /> },
+                    { path: 'reorder', element: <ReorderPage /> },
+                    { path: 'reservations', element: <ReservationsPage /> },
+                    { path: 'adjustments', element: <AdjustmentsPage /> },
+                    { path: 'warehouses', element: <WarehousesPage /> },
+                ],
+            },
             { path: 'dispatch', element: <DispatchPage /> },
             { path: 'jobs', element: <JobsPage /> },
             { path: 'documents', element: <DocumentsPage /> },
