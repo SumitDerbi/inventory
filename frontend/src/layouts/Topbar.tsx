@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/DropdownMenu';
 import { NAV_BY_PATH } from '@/app/navConfig';
 import { useAuth } from '@/app/auth-context';
+import { formatRelative } from '@/lib/format';
+import { notifications, notificationsSummary } from '@/mocks/admin';
 
 export interface TopbarProps {
     onOpenSidebar: () => void;
@@ -21,6 +23,8 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
     const navigate = useNavigate();
     const location = useLocation();
     const crumbs = buildBreadcrumb(location.pathname);
+    const summary = notificationsSummary();
+    const recentNotifications = notifications.slice(0, 5);
 
     return (
         <header className="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4">
@@ -76,23 +80,34 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
                         >
                             <Bell className="size-5" aria-hidden="true" />
                             <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
-                                3
+                                {summary.unread}
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-72">
-                        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                        <DropdownMenuItem className="flex-col items-start gap-0.5">
-                            <span className="font-medium">New inquiry from Tata Realty</span>
-                            <span className="text-xs text-slate-400">2 minutes ago</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="flex-col items-start gap-0.5">
-                            <span className="font-medium">Quotation QT-00041 approved</span>
-                            <span className="text-xs text-slate-400">1 hour ago</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="flex-col items-start gap-0.5">
-                            <span className="font-medium">Low stock alert: 3 SKUs</span>
-                            <span className="text-xs text-slate-400">Today</span>
+                    <DropdownMenuContent align="end" className="w-80">
+                        <DropdownMenuLabel className="flex items-center justify-between">
+                            <span>Notifications</span>
+                            <span className="text-xs font-normal text-slate-400">
+                                {summary.unread} unread
+                            </span>
+                        </DropdownMenuLabel>
+                        {recentNotifications.map((n) => (
+                            <DropdownMenuItem
+                                key={n.id}
+                                className="flex-col items-start gap-0.5"
+                                onSelect={() => navigate(n.href ?? '/notifications')}
+                            >
+                                <span className="font-medium">{n.title}</span>
+                                <span className="text-xs text-slate-400">
+                                    {formatRelative(n.createdAt)}
+                                </span>
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onSelect={() => navigate('/notifications')}
+                        >
+                            View all notifications
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -125,10 +140,10 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => navigate('/settings')}>
+                        <DropdownMenuItem onSelect={() => navigate('/profile')}>
                             <User className="size-4" aria-hidden="true" /> Profile
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => navigate('/settings')}>
+                        <DropdownMenuItem onSelect={() => navigate('/profile')}>
                             <KeyRound className="size-4" aria-hidden="true" /> Change password
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />

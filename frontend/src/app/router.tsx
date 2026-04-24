@@ -62,7 +62,12 @@ const ReportViewerPage = lazy(
     () => import('@/pages/reports/ReportViewerPage'),
 );
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));
+const RolesPage = lazy(() => import('@/pages/admin/RolesPage'));
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+const ProfilePage = lazy(() => import('@/pages/admin/ProfilePage'));
+const NotificationCenterPage = lazy(
+    () => import('@/pages/admin/NotificationCenterPage'),
+);
 
 // Dev/utility
 const KitchenSinkPage = lazy(() => import('@/pages/_dev/KitchenSink'));
@@ -124,7 +129,10 @@ export const router = createBrowserRouter([
             { path: 'reports', element: <ReportsPage /> },
             { path: 'reports/:slug', element: <ReportViewerPage /> },
             { path: 'users', element: <UsersPage /> },
+            { path: 'users/roles', element: <RolesPage /> },
             { path: 'settings', element: <SettingsPage /> },
+            { path: 'profile', element: <ProfilePage /> },
+            { path: 'notifications', element: <NotificationCenterPage /> },
         ],
     },
     { path: '/__kitchen-sink', element: <KitchenSinkPage /> },
