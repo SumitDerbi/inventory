@@ -15,7 +15,7 @@
 | 05  | [Executive dashboard](./05-dashboard.md)                 | ✅     |
 | 06  | [Inquiry module](./06-inquiries.md)                      | ✅     |
 | 07  | [Quotation module](./07-quotations.md)                   | ✅     |
-| 08  | [Sales order module](./08-sales-orders.md)               | ☐      |
+| 08  | [Sales order module](./08-sales-orders.md)               | ✅     |
 | 09  | [Inventory module](./09-inventory.md)                    | ☐      |
 | 10  | [Dispatch & logistics](./10-dispatch.md)                 | ☐      |
 | 11  | [Engineer & installation jobs](./11-jobs-engineer.md)    | ☐      |

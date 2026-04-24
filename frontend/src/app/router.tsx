@@ -21,6 +21,7 @@ const QuotationDetailPage = lazy(
     () => import('@/pages/quotations/QuotationDetailPage'),
 );
 const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'));
+const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'));
 const InventoryPage = lazy(() => import('@/pages/inventory/InventoryPage'));
 const DispatchPage = lazy(() => import('@/pages/dispatch/DispatchPage'));
 const JobsPage = lazy(() => import('@/pages/jobs/JobsPage'));
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
             { path: 'quotations', element: <QuotationsPage /> },
             { path: 'quotations/:id', element: <QuotationDetailPage /> },
             { path: 'orders', element: <OrdersPage /> },
+            { path: 'orders/:id', element: <OrderDetailPage /> },
             { path: 'inventory', element: <InventoryPage /> },
             { path: 'dispatch', element: <DispatchPage /> },
             { path: 'jobs', element: <JobsPage /> },

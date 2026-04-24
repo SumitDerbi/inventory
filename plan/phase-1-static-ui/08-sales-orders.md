@@ -1,50 +1,64 @@
-# Step 08 — Sales Orders (Static UI)
+# Phase 1 · Step 08 — Sales Orders Module
 
-> Before this: [07-quotations.md](./07-quotations.md)
-> Spec: [docs/development_spec.md Module 3](../../docs/development_spec.md), [docs/project_details.md §3](../../docs/project_details.md)
+Status: ✅ Delivered
 
----
+## ✅ Delivered
 
-## Objective
+### Helpers & tokens
 
-Static UI for order lifecycle: list, detail with MRP view, delivery schedule, installation readiness, stage transitions.
+- `frontend/src/lib/orderStatus.ts` — `OrderStage` union (confirmed / processing / ready / dispatched / installed / on_hold / cancelled), `ORDER_STAGES` (7), `STEPPER_STAGES` (5 linear), `stageLabel`, `stageIndex`, `isTerminal`, `canCancel`, `canCreateDispatch`, `canRaiseInvoice`, `canAdvanceTo`.
+- `StatusBadge` tokens extended with `Processing` (blue) and `Ready` (emerald).
 
----
+### Mocks
 
-## Sub-screens
+- `frontend/src/mocks/orders.ts` — 20 sales orders:
+  - **SO-2026-001** (processing, links to Q-2026-001): 4 line items with a Sand Filter shortage, 2 delivery plans, MRP with shortage row, partial civil readiness, readiness flag `amber`, rich activity log.
+  - **SO-2026-002** (ready, links to Q-2026-003): 3 items fully in stock, 1 delivery plan, fully ready installation checklist, readiness flag `green`.
+  - **SO-2026-003 … SO-2026-020**: 18 light orders spanning every stage (confirmed, processing, ready, dispatched, installed, on_hold, cancelled) with 2 carrying `pendingApproval` (1 amendment, 1 cancellation).
+- Interfaces: `OrderLineItem`, `DeliveryPlan`, `MrpRow`, `InstallationChecklist`, `OrderDocument`, `OrderActivity`, `SalesOrder`. Helpers: `orderById`, `itemPending`.
 
-1. **Order List** — `/orders`
-   - Columns: SO #, Date, Customer, Quote #, Value, Stage, Delivery Date, Site, Owner.
-   - Filters: stage, owner, date range, customer, readiness flag.
-2. **Order Detail** — `/orders/:id`
-   - Header: SO #, stage stepper (Confirmed → Processing → Ready → Dispatched → Installed), actions (Edit, Cancel, Create Dispatch, Raise Invoice).
-   - Tabs: `Items`, `Delivery Plan`, `Material Readiness (MRP)`, `Installation Readiness`, `Documents`, `Activity`.
-   - **Items tab**: per line — ordered qty, reserved, dispatched, pending, backorder; partial fulfilment shown inline.
-   - **Delivery Plan tab**: multiple delivery schedules (date, qty, address) with add/edit.
-   - **MRP tab**: per-item stock available, reserved, shortage, procurement dependency; color-coded.
-   - **Installation Readiness tab**: checklist (civil ready, electrical ready, approvals, site contact, expected date).
-   - **Documents tab**: linked quotation, PO from customer, delivery notes, invoices.
-3. **Stage transition dialogs** — each gated transition opens a confirmation with required inputs (e.g. shortage acknowledgement when moving to Ready).
-4. **Cancel / Amendment flow** — dialog with reason; triggers approval banner in detail.
+### List page — `OrdersPage`
 
----
+- `FilterBar` with search, stage / owner / readiness selects, from & to date inputs, and Reset.
+- Export dropdown (CSV / Excel / PDF) emitting toasts.
+- `DataTable<Row>` with SO #, Date, Customer, linked Quote #, Value (INR), Stage (StatusBadge), Delivery date, Readiness badge (green / amber / red), Owner. Row click → `/orders/:id`.
+- `PageHeader` "New order" button nudges users toward quotation conversion via toast.
 
-## Mock data
+### Detail page — `OrderDetailPage`
 
-- `src/mocks/orders.js` with orders across every stage, including partial fulfilment + shortages.
-- Cross-reference quotations from mocks/quotations.js.
+- Header: back link, order number, stage badge, pending-approval badge, linked quotation, customer, company, project, owner.
+- Pending-approval amber banner with Approve action when `pendingApproval` is set.
+- **Stage stepper**: 5 linear pills, clickable next-step advance, warning row when order is `cancelled` / `on_hold`.
+- Summary strip: total value, expected delivery, material readiness (red on shortage), install readiness (amber when incomplete).
+- **Six tabs** (with count badges):
+  - **Items** — table with ordered / reserved / dispatched / pending / backorder, dispatched progress bar per row.
+  - **Delivery Plan** — scheduled deliveries list with status-tinted Truck icons, Badge per status, Add-delivery button.
+  - **Material Readiness (MRP)** — rows with red background on shortages, footer warning about required acknowledgement.
+  - **Installation Readiness** — checklist (civil / electrical / approvals) + site-details card (address, contact, expected date).
+  - **Documents** — icon-mapped list by type (quotation / customer PO / delivery note / invoice / installation report).
+  - **Activity** — timeline sorted desc with icon per activity type, actor name and relative time.
+- **Six dialogs**:
+  - `StageAdvanceDialog` — shortage acknowledgement gate before `ready`, install-checklist gate before `installed`.
+  - `CancelOrderDialog` — required reason, fake async submit, warning toast.
+  - `AmendmentDialog` — required change description, info toast.
+  - `CreateDispatchDialog` — date + vehicle inputs, success toast, navigates to `/dispatch`.
+  - `RaiseInvoiceDialog` — invoice type (full / partial / proforma), success toast.
+  - `AddDeliveryDialog` — scheduled date + quantity + address (prefilled) + notes, success toast.
 
----
+### Routing
+
+- `frontend/src/app/router.tsx` adds lazy `OrderDetailPage` and `{ path: 'orders/:id' }`.
 
 ## Verification
 
-- [ ] Stage stepper visually tracks current stage, gated transitions disabled when prerequisites unmet.
-- [ ] MRP tab highlights shortages in red; tooltip explains.
-- [ ] Partial fulfilment numbers reconcile (ordered = dispatched + pending).
-- [ ] Installation readiness checklist enforces completion before "Installed" transition.
-- [ ] Cancel/amend flows show approval-pending banner.
-- [ ] Commit: `feat(ui): sales order module static`.
+- [x] `npm run lint` — clean (only the unchanged InquiryFormDrawer `watch()` compiler warning).
+- [x] `npm run build` — green.
+  - `OrdersPage` chunk ~5.52 kB
+  - `OrderDetailPage` chunk ~27.89 kB
+  - `orders` mocks chunk ~14.34 kB
+- [x] List → detail navigation wired; Quote # → quotation detail wired.
+- [x] Shortage acknowledgement + installation gating enforced on stage advance.
 
----
+## Commit
 
-**Next:** [09-inventory.md](./09-inventory.md)
+`feat(ui): sales order module static`
