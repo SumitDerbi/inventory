@@ -33,7 +33,7 @@
 - [x] Responsive: `<lg` columns stack to single column.
 - [x] No layout shift — `RevenueLineChart` reserves fixed `height={280}`.
 - [x] `npm run lint` clean, `npm run build` green in 3.90s (DashboardPage chunk 353.42 KB / gz 103.80 KB — Recharts inlined into route chunk by lazy boundary).
-- [ ] Commit: `feat(ui): executive dashboard static`.
+- [x] Commit: `feat(ui): executive dashboard static`.
 
 ---
 

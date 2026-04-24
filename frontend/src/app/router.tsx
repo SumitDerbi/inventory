@@ -13,6 +13,9 @@ const ForgotPasswordPage = lazy(
 // Modules
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const InquiriesPage = lazy(() => import('@/pages/inquiries/InquiriesPage'));
+const InquiryDetailPage = lazy(
+    () => import('@/pages/inquiries/InquiryDetailPage'),
+);
 const QuotationsPage = lazy(() => import('@/pages/quotations/QuotationsPage'));
 const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'));
 const InventoryPage = lazy(() => import('@/pages/inventory/InventoryPage'));
@@ -40,6 +43,7 @@ export const router = createBrowserRouter([
             { index: true, element: <Navigate to="/dashboard" replace /> },
             { path: 'dashboard', element: <DashboardPage /> },
             { path: 'inquiries', element: <InquiriesPage /> },
+            { path: 'inquiries/:id', element: <InquiryDetailPage /> },
             { path: 'quotations', element: <QuotationsPage /> },
             { path: 'orders', element: <OrdersPage /> },
             { path: 'inventory', element: <InventoryPage /> },
