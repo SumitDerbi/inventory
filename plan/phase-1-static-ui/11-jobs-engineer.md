@@ -60,13 +60,13 @@ Build the **Jobs & engineers** module covering scheduled installations/service v
 - [x] `get_errors` — all new files clean.
 - [x] `npm run lint` — 0 errors (1 pre-existing warning in `InquiryFormDrawer.tsx`, unrelated).
 - [x] `npm run build` — passes in ~4.3 s. Key chunks:
-    - `JobsLayout-*.js` — 1.91 kB (gzip 0.86 kB)
-    - `JobsListPage-*.js` — 3.95 kB (gzip 1.47 kB)
-    - `SchedulerPage-*.js` — 4.53 kB (gzip 1.72 kB)
-    - `EngineersPage-*.js` — 5.25 kB (gzip 1.88 kB)
-    - `JobDetailPage-*.js` — 25.37 kB (gzip 6.46 kB)
-    - `engineers-*.js` mock — 1.71 kB
-    - `jobs-*.js` mock — 14.49 kB
+  - `JobsLayout-*.js` — 1.91 kB (gzip 0.86 kB)
+  - `JobsListPage-*.js` — 3.95 kB (gzip 1.47 kB)
+  - `SchedulerPage-*.js` — 4.53 kB (gzip 1.72 kB)
+  - `EngineersPage-*.js` — 5.25 kB (gzip 1.88 kB)
+  - `JobDetailPage-*.js` — 25.37 kB (gzip 6.46 kB)
+  - `engineers-*.js` mock — 1.71 kB
+  - `jobs-*.js` mock — 14.49 kB
 - [x] Nested jobs routes render: list → detail → scheduler → engineers.
 - [x] React Compiler purity preserved (module-level `TODAY`, no `Date.now()` during render).
 

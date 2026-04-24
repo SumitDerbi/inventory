@@ -157,7 +157,7 @@ export default function SchedulerPage() {
                                             className={cn(
                                                 'min-w-[160px] border-b border-slate-100 p-2 align-top',
                                                 conflict &&
-                                                    'bg-red-50',
+                                                'bg-red-50',
                                             )}
                                         >
                                             <div className="space-y-1.5">
@@ -196,20 +196,20 @@ export default function SchedulerPage() {
                                                             </Badge>
                                                             {(j.priority === 'high' ||
                                                                 j.priority === 'urgent') && (
-                                                                <Badge
-                                                                    tone={
-                                                                        JOB_PRIORITY_TONE[
+                                                                    <Badge
+                                                                        tone={
+                                                                            JOB_PRIORITY_TONE[
                                                                             j.priority
-                                                                        ]
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        JOB_PRIORITY_LABEL[
+                                                                            ]
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            JOB_PRIORITY_LABEL[
                                                                             j.priority
-                                                                        ]
-                                                                    }
-                                                                </Badge>
-                                                            )}
+                                                                            ]
+                                                                        }
+                                                                    </Badge>
+                                                                )}
                                                         </div>
                                                     </button>
                                                 ))}
