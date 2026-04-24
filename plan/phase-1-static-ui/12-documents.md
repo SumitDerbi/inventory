@@ -45,9 +45,9 @@ prior placeholder.
   - `FilterBar` with full-text search + 4 selects (type / entity type /
     sensitivity / uploader) + Reset button.
   - `DataTable` with 8 columns (select checkbox / Document name + filename
-    + file-type icon / Linked-to with route link / Type badge /
-    Sensitivity badge with `Lock` for confidential / Version `vN (count)` /
-    Uploader name + relative time / Size right-aligned tabular).
+    - file-type icon / Linked-to with route link / Type badge /
+      Sensitivity badge with `Lock` for confidential / Version `vN (count)` /
+      Uploader name + relative time / Size right-aligned tabular).
   - Row click opens the detail `Sheet`.
 - **`DocumentDrawer`** — right sheet (max 40rem):
   - Header: file-type icon, name, three badges (type / sensitivity /
@@ -76,15 +76,15 @@ no router changes required for this step.
 
 - [x] `get_errors` — clean.
 - [x] `npm run lint` — clean (only the pre-existing
-  `InquiryFormDrawer.tsx` `react-hook-form` watch warning).
+      `InquiryFormDrawer.tsx` `react-hook-form` watch warning).
 - [x] `npm run build` — succeeds in ~4.6s.
 
 ### Notable chunk sizes
 
-| Asset                            | Raw       | Gzip     |
-| -------------------------------- | --------- | -------- |
-| `DocumentsPage-*.js`             | 27.67 kB  | 8.06 kB  |
-| `index-*.js` (root bundle)       | 516.52 kB | 165.42 kB |
+| Asset                      | Raw       | Gzip      |
+| -------------------------- | --------- | --------- |
+| `DocumentsPage-*.js`       | 27.67 kB  | 8.06 kB   |
+| `index-*.js` (root bundle) | 516.52 kB | 165.42 kB |
 
 ## Commit
 

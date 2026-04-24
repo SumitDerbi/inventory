@@ -64,12 +64,12 @@ export interface DocumentActivity {
     at: string;
     actorId: string;
     action:
-        | 'uploaded'
-        | 'replaced'
-        | 'downloaded'
-        | 'shared'
-        | 'access_changed'
-        | 'tagged';
+    | 'uploaded'
+    | 'replaced'
+    | 'downloaded'
+    | 'shared'
+    | 'access_changed'
+    | 'tagged';
     summary: string;
 }
 
