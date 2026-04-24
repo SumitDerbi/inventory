@@ -58,6 +58,9 @@ const SchedulerPage = lazy(() => import('@/pages/jobs/SchedulerPage'));
 const EngineersPage = lazy(() => import('@/pages/jobs/EngineersPage'));
 const DocumentsPage = lazy(() => import('@/pages/documents/DocumentsPage'));
 const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage'));
+const ReportViewerPage = lazy(
+    () => import('@/pages/reports/ReportViewerPage'),
+);
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 
@@ -119,6 +122,7 @@ export const router = createBrowserRouter([
             },
             { path: 'documents', element: <DocumentsPage /> },
             { path: 'reports', element: <ReportsPage /> },
+            { path: 'reports/:slug', element: <ReportViewerPage /> },
             { path: 'users', element: <UsersPage /> },
             { path: 'settings', element: <SettingsPage /> },
         ],

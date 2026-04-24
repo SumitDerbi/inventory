@@ -20,7 +20,7 @@
 | 10  | [Dispatch & logistics](./10-dispatch.md)                 | ✅     |
 | 11  | [Engineer & installation jobs](./11-jobs-engineer.md)    | ✅     |
 | 12  | [Documents module](./12-documents.md)                    | ✅     |
-| 13  | [Reports & analytics](./13-reports.md)                   | ☐      |
+| 13  | [Reports & analytics](./13-reports.md)                   | ✅      |
 | 14  | [Admin (users, roles, settings)](./14-admin.md)          | ☐      |
 | 15  | [Static deploy + client review](./15-static-deploy.md)   | ☐      |
 
