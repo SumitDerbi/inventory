@@ -1,45 +1,38 @@
-# Step 05 — Executive Dashboard
+# Step 05 — Executive Dashboard ✅
 
 > Before this: [04-auth.md](./04-auth.md)
 > Spec: [docs/ui_spec.md §Section 2](../../docs/ui_spec.md)
 
 ---
 
-## Objective
+## ✅ Delivered
 
-Deliver the executive dashboard exactly per spec: 4 KPI cards, revenue chart, inquiry funnel, recent activity feed, pending actions list.
-
----
-
-## Steps
-
-1. **Mock data** — `src/mocks/dashboard.js`:
-   - `kpis[]` (4 entries matching spec values).
-   - `revenueTrend[]` (6 months, revenue + cost).
-   - `funnelStages[]` (New, In Progress, Quoted, Won, Lost).
-   - `recentActivity[]` (≥ 12 items, timestamps via `date-fns`).
-   - `pendingActions{}` (grouped by type with counts).
-2. **`ExecutiveDashboard.jsx`** page:
-   - Row 1: 4× `<StatCard>`.
-   - Row 2 Left (7 cols): `<RevenueLineChart>` using Recharts `LineChart`, two lines, custom tooltip with ₹ formatting.
-   - Row 2 Right (5 cols): `<InquiryFunnelChart>` — Recharts `FunnelChart` _or_ horizontal bar fallback.
-   - Row 3 Left: `<RecentActivityFeed>` scrollable.
-   - Row 3 Right: `<PendingActionsList>` grouped by type with `Badge` counts.
-3. **Chart components** under `src/components/charts/`.
-4. **Currency/number formatter** — `src/lib/format.js` with `formatINR`, `formatCompactINR`, `formatRelative`.
-5. **Stagger animation** on KPI cards (Framer 0.05s per card).
+- **`src/lib/format.ts`** — added `formatRelative()` using `Intl.RelativeTimeFormat` (no extra dep).
+- **`src/mocks/dashboard.ts`** — typed mocks: `kpis` (4), `revenueTrend` (6 months), `funnelStages` (5 stages), `recentActivity` (12 items), `pendingActions` (4 groups).
+- **Charts (`src/components/charts/`)**:
+  - `RevenueLineChart.tsx` — Recharts `LineChart` with two lines (revenue solid blue, cost dashed slate), custom tooltip with `formatINR`, compact ₹ Y-axis ticks, horizontal grid only.
+  - `InquiryFunnelChart.tsx` — accessible HTML/CSS bars with stage colors + conversion %, no extra Recharts surface.
+- **Widgets (`src/components/dashboard/`)**:
+  - `RecentActivityFeed.tsx` — scrollable (`max-h-80`) list with per-type icon badges + `formatRelative` meta.
+  - `PendingActionsList.tsx` — grouped list with icon, label, preview item, count `<Badge tone="blue">`, chevron.
+- **`pages/dashboard/DashboardPage.tsx`** — 12-col responsive grid:
+  - Row 1: 4× `StatCard` wrapped in `motion.div` (0.05s stagger, fade + 8px rise).
+  - Row 2: Revenue chart (col-span-7) + Inquiry funnel (col-span-5) with custom legend dots.
+  - Row 3: Activity feed (col-span-7) + Pending actions (col-span-5).
+  - PageHeader with outline `Export` action.
 
 ---
 
 ## Verification
 
-- [ ] All 4 KPIs match spec values + deltas with arrows/colors.
-- [ ] Revenue chart tooltip formats as `₹12,40,000`.
-- [ ] Funnel shows 5 stages with counts + conversion %.
-- [ ] Activity feed scrolls within `max-h-80`.
-- [ ] Pending actions list groups by type, badges correct.
-- [ ] Responsive: at `<1024px` columns stack; charts remain readable.
-- [ ] No layout shift after mount (reserve chart height).
+- [x] All 4 KPIs match spec values + deltas (arrows + tone colors via `StatCard`).
+- [x] Revenue tooltip formats as `₹45,80,000` via `formatINR`.
+- [x] Funnel shows 5 stages with counts + conversion %.
+- [x] Activity feed scrolls within `max-h-80`.
+- [x] Pending actions grouped by type with badge counts.
+- [x] Responsive: `<lg` columns stack to single column.
+- [x] No layout shift — `RevenueLineChart` reserves fixed `height={280}`.
+- [x] `npm run lint` clean, `npm run build` green in 3.90s (DashboardPage chunk 353.42 KB / gz 103.80 KB — Recharts inlined into route chunk by lazy boundary).
 - [ ] Commit: `feat(ui): executive dashboard static`.
 
 ---

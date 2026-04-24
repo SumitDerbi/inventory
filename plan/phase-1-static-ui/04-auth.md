@@ -8,13 +8,16 @@
 ## Delivered
 
 ### New primitives / layout
+
 - `src/components/ui/PasswordInput.tsx` — password field with show/hide toggle (Eye / EyeOff). Forwards `ref`, supports `invalid`, pairs with `FormField`.
 - `src/layouts/AuthLayout.tsx` — two-column layout. Left: gradient `from-slate-800 to-blue-900` branding panel with logo, tagline, 3 feature bullets (Workflow / ShieldCheck / Sparkles) and version footer — hidden below `lg`. Right: centered form column with mobile-only logo row.
 
 ### Schemas
+
 - `src/pages/auth/schema.ts` — `loginSchema` (email + password min 8) and `forgotPasswordSchema` via `zod`.
 
 ### Screens
+
 - `src/pages/auth/LoginPage.tsx` — `react-hook-form` + `@hookform/resolvers/zod`. Inline field errors, form-level `ErrorAlert` slot, 900 ms simulated latency, disabled + `Loader2` spinner while submitting, on success → `signIn()` + navigate to `state.from || /dashboard`. Demo credentials prefilled.
 - `src/pages/auth/ForgotPasswordPage.tsx` — RHF + zod, 900 ms simulated latency, success state replaces the form with a green `ErrorAlert` (variant=success) + "Back to sign in" link.
 
@@ -31,7 +34,7 @@ Router already points to these pages from Step 03; no router changes needed.
 - [x] Tab order: email → password → show/hide toggle → forgot link → submit.
 - [x] `npm run lint` — clean.
 - [x] `npm run build` — green (3.67s). New chunks: `LoginPage` 3.57 KB / 1.64 KB gz, `ForgotPasswordPage` 2.09 KB / 1.03 KB gz, shared `schema` (zod + RHF resolver) 86.77 KB / 26.3 KB gz.
-- [ ] Commit: `feat(ui): auth screens static`.
+- [x] Commit: `feat(ui): auth screens static`.
 
 ---
 
