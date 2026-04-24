@@ -24,4 +24,5 @@
   ```
 
 - export csv, excel and pdfs
-- see conds
+- use zod validation, and forms from the shadcn
+- react query,
