@@ -1,50 +1,79 @@
-# Step 11 — Engineer & Installation Jobs (Static UI)
+# Step 11 — Engineer & installation jobs
 
-> Before this: [10-dispatch.md](./10-dispatch.md)
-> Spec: [docs/development_spec.md Module 6](../../docs/development_spec.md), [docs/project_details.md §6](../../docs/project_details.md)
+> Status: ✅ Delivered (Phase 1 static UI)
 
----
-
-## Objective
-
-Static UI for job scheduling, engineer assignment, mobile-friendly job execution, checklists, commissioning reports.
+Build the **Jobs & engineers** module covering scheduled installations/service visits, on-site execution (checklist, photos, observations), engineer roster, and a weekly scheduler. All static — no backend.
 
 ---
 
-## Sub-screens
+## ✅ Delivered — Mocks
 
-1. **Jobs List** — `/jobs`
-   - Columns: Job #, Order #, Customer, Site, Engineer, Schedule, Status, Priority.
-   - Filters: status, engineer, date range, product category.
-2. **Job Detail** — `/jobs/:id`
-   - Header: status (Scheduled → In Progress → Completed → Signed Off), priority.
-   - Tabs: `Overview`, `Checklist`, `Photos`, `Commissioning Report`, `Observations`, `Activity`.
-   - **Checklist tab**: grouped checklist items with check / NA / fail + remark; overall progress bar.
-   - **Photos**: grid of uploaded photos (dropzone stub, lightbox view).
-   - **Commissioning Report**: form with test readings + upload signed PDF.
-   - **Observations**: free-text notes with severity tag.
-3. **Engineers** — `/users/engineers`
-   - Profiles with skill matrix (product categories × proficiency).
-4. **Scheduler view** — `/jobs/calendar`
-   - Weekly calendar grid per engineer; click cell → create/reassign job.
-5. **Mobile view** — responsive at `<768px` keeps job detail usable with single-column tabs + large tap targets.
+- `frontend/src/mocks/users.ts` — extended role union with `'engineer'`; added `u-8 Manish Patel`, `u-9 Ritika Sharma`, `u-10 Arjun Joshi`.
+- `frontend/src/mocks/engineers.ts` — new. Types `EngineerProficiency`, `EngineerSkill`, `Engineer`. 3 engineers (eng-1 Ahmedabad / Pumps, eng-2 Ahmedabad / Solar, eng-3 Surat / Fire-fighting) with code, skills, certifications, status (`available|on_job|on_leave`), `avgRating`, `activeJobs`, `completedThisMonth`, `nextSlotAt`. Helpers: `engineerById`, `engineersByCity`.
+- `frontend/src/mocks/checklistTemplates.ts` — new. Types `ChecklistItemTemplate`, `ChecklistGroup`, `ChecklistTemplate`. 3 templates (pump install, fire-fighting commissioning, solar handover). Helpers: `checklistTemplateByCategory`, `checklistTemplateById`.
+- `frontend/src/mocks/jobs.ts` — new. Types `JobStatus`, `JobPriority`, `JobType`, `ChecklistItemStatus`, `JobChecklistItem/Group`, `JobPhoto`, `ObservationSeverity`, `JobObservation`, `CommissioningReading`, `CommissioningReport`, `JobActivity`, `Job`.
+  - Constants: `JOB_STATUSES`, `JOB_STATUS_LABEL`, `JOB_STATUS_TONE`, `JOB_PRIORITY_LABEL`, `JOB_PRIORITY_TONE`, `JOB_TYPE_LABEL`, `ALLOWED_NEXT`.
+  - 8 seeded jobs spanning all statuses and priorities (installation, commissioning, service visit, AMC, breakdown).
+  - Helpers: `jobById`, `jobsForOrder`, `jobsForEngineer`, `checklistProgress`, `jobsSummary`, `ordersAwaitingJob`, `nextJobStatuses`, `canAdvanceJob`.
 
 ---
 
-## Mock data
+## ✅ Delivered — Pages
 
-- `src/mocks/jobs.js`, `mocks/engineers.js`, `mocks/checklistTemplates.js`.
+- `frontend/src/pages/jobs/JobsLayout.tsx` — `PageHeader` + 4-stat strip (Total / Scheduled / In-progress / Awaiting sign-off) + sub-nav tabs (Jobs / Scheduler / Engineers) + `<Outlet />`.
+- `frontend/src/pages/jobs/JobsListPage.tsx` — `FilterBar` (search + Status + Engineer + Type + Priority) + `DataTable<Job>` with Job#, Order link, Customer, Site city, Engineer, Schedule, Priority, Status. Row click → `/jobs/:id`.
+- `frontend/src/pages/jobs/JobDetailPage.tsx` — full work-order view:
+  - Header: job number + status + priority + type badges, customer/site summary, order link, **Advance** button gated by `nextJobStatuses`.
+  - Stepper: scheduled → en-route → in-progress → completed → signed-off.
+  - Open-observation alert for major/critical findings.
+  - KPI strip (checklist %, engineer, schedule, travel).
+  - 6 tabs:
+    - **Overview** — site & contact card; engineer + helpers + top skills.
+    - **Checklist** — grouped items with pass/fail/N-A badges, photo-required flag, progress bar.
+    - **Photos** — responsive grid + click-to-zoom lightbox + upload dialog (mock).
+    - **Commissioning** — submitted → readings table (in/out of spec) + summary + signed PDF link + customer rating; else → submit-report dialog.
+    - **Observations** — severity-coloured cards + log-observation dialog.
+    - **Activity** — chronological audit trail.
+  - Dialogs: `AdvanceJobDialog` (checklist gate warning), `ObservationDialog` (severity + note), `PhotoUploadDialog` (mock dropzone + caption), `ReportDialog` (customer signatory + summary), `Lightbox`.
+- `frontend/src/pages/jobs/SchedulerPage.tsx` — weekly calendar. Header: prev / Today / next. Grid: rows = engineers, columns = 7 days starting Monday. Cells show job cards (job#, customer, time, site, status/priority badges), overlap-detection highlights cell red. Empty cells show `—`. Click a card → detail.
+- `frontend/src/pages/jobs/EngineersPage.tsx` — searchable roster. Filter pills (All / Available / On job / On leave). Cards: name, code, base + service cities, status badge, rating / active / monthly metrics, skill pills coloured by proficiency (expert / proficient / trainee), certifications, next slot, phone.
 
 ---
 
-## Verification
+## ✅ Delivered — Routing
 
-- [ ] Checklist completion % computed from items and updates progress bar.
-- [ ] Photo grid supports lightbox preview.
-- [ ] Scheduler view prevents double-booking (visual conflict indicator).
-- [ ] Job detail is usable at 360 px width (no horizontal scroll).
-- [ ] Commit: `feat(ui): jobs + engineer module static`.
+```
+/jobs               JobsLayout
+├── index           JobsListPage
+├── /calendar       SchedulerPage
+├── /engineers      EngineersPage
+└── /:id            JobDetailPage
+```
+
+- Lazy imports added in `frontend/src/app/router.tsx`.
+- Old `JobsPage.tsx` stub removed.
 
 ---
 
-**Next:** [12-documents.md](./12-documents.md)
+## ✅ Verification
+
+- [x] `get_errors` — all new files clean.
+- [x] `npm run lint` — 0 errors (1 pre-existing warning in `InquiryFormDrawer.tsx`, unrelated).
+- [x] `npm run build` — passes in ~4.3 s. Key chunks:
+    - `JobsLayout-*.js` — 1.91 kB (gzip 0.86 kB)
+    - `JobsListPage-*.js` — 3.95 kB (gzip 1.47 kB)
+    - `SchedulerPage-*.js` — 4.53 kB (gzip 1.72 kB)
+    - `EngineersPage-*.js` — 5.25 kB (gzip 1.88 kB)
+    - `JobDetailPage-*.js` — 25.37 kB (gzip 6.46 kB)
+    - `engineers-*.js` mock — 1.71 kB
+    - `jobs-*.js` mock — 14.49 kB
+- [x] Nested jobs routes render: list → detail → scheduler → engineers.
+- [x] React Compiler purity preserved (module-level `TODAY`, no `Date.now()` during render).
+
+---
+
+## Commit
+
+```
+feat(ui): jobs + engineer module static
+```

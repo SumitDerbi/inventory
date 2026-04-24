@@ -2,7 +2,7 @@ export interface MockUser {
     id: string;
     name: string;
     email: string;
-    role: 'admin' | 'sales_manager' | 'sales_executive' | 'inventory' | 'dispatch';
+    role: 'admin' | 'sales_manager' | 'sales_executive' | 'inventory' | 'dispatch' | 'engineer';
 }
 
 export const users: MockUser[] = [
@@ -13,6 +13,9 @@ export const users: MockUser[] = [
     { id: 'u-5', name: 'Vihaan Shah', email: 'vihaan@firm.in', role: 'admin' },
     { id: 'u-6', name: 'Priya Nair', email: 'priya@firm.in', role: 'inventory' },
     { id: 'u-7', name: 'Kabir Desai', email: 'kabir@firm.in', role: 'dispatch' },
+    { id: 'u-8', name: 'Manish Patel', email: 'manish@firm.in', role: 'engineer' },
+    { id: 'u-9', name: 'Ritika Sharma', email: 'ritika@firm.in', role: 'engineer' },
+    { id: 'u-10', name: 'Arjun Joshi', email: 'arjun@firm.in', role: 'engineer' },
 ];
 
 export function userById(id: string | null | undefined): MockUser | undefined {

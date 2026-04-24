@@ -51,7 +51,11 @@ const TransportersPage = lazy(
     () => import('@/pages/dispatch/TransportersPage'),
 );
 const VehiclesPage = lazy(() => import('@/pages/dispatch/VehiclesPage'));
-const JobsPage = lazy(() => import('@/pages/jobs/JobsPage'));
+const JobsLayout = lazy(() => import('@/pages/jobs/JobsLayout'));
+const JobsListPage = lazy(() => import('@/pages/jobs/JobsListPage'));
+const JobDetailPage = lazy(() => import('@/pages/jobs/JobDetailPage'));
+const SchedulerPage = lazy(() => import('@/pages/jobs/SchedulerPage'));
+const EngineersPage = lazy(() => import('@/pages/jobs/EngineersPage'));
 const DocumentsPage = lazy(() => import('@/pages/documents/DocumentsPage'));
 const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage'));
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));
@@ -103,7 +107,16 @@ export const router = createBrowserRouter([
                     { path: ':id', element: <DispatchDetailPage /> },
                 ],
             },
-            { path: 'jobs', element: <JobsPage /> },
+            {
+                path: 'jobs',
+                element: <JobsLayout />,
+                children: [
+                    { index: true, element: <JobsListPage /> },
+                    { path: 'calendar', element: <SchedulerPage /> },
+                    { path: 'engineers', element: <EngineersPage /> },
+                    { path: ':id', element: <JobDetailPage /> },
+                ],
+            },
             { path: 'documents', element: <DocumentsPage /> },
             { path: 'reports', element: <ReportsPage /> },
             { path: 'users', element: <UsersPage /> },
