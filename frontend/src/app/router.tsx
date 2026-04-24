@@ -37,7 +37,20 @@ const ReorderPage = lazy(() => import('@/pages/inventory/ReorderPage'));
 const ReservationsPage = lazy(
     () => import('@/pages/inventory/ReservationsPage'),
 );
-const DispatchPage = lazy(() => import('@/pages/dispatch/DispatchPage'));
+const DispatchLayout = lazy(() => import('@/pages/dispatch/DispatchLayout'));
+const DispatchListPage = lazy(
+    () => import('@/pages/dispatch/DispatchListPage'),
+);
+const DispatchDetailPage = lazy(
+    () => import('@/pages/dispatch/DispatchDetailPage'),
+);
+const PlanDispatchPage = lazy(
+    () => import('@/pages/dispatch/PlanDispatchPage'),
+);
+const TransportersPage = lazy(
+    () => import('@/pages/dispatch/TransportersPage'),
+);
+const VehiclesPage = lazy(() => import('@/pages/dispatch/VehiclesPage'));
 const JobsPage = lazy(() => import('@/pages/jobs/JobsPage'));
 const DocumentsPage = lazy(() => import('@/pages/documents/DocumentsPage'));
 const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage'));
@@ -79,7 +92,17 @@ export const router = createBrowserRouter([
                     { path: 'warehouses', element: <WarehousesPage /> },
                 ],
             },
-            { path: 'dispatch', element: <DispatchPage /> },
+            {
+                path: 'dispatch',
+                element: <DispatchLayout />,
+                children: [
+                    { index: true, element: <DispatchListPage /> },
+                    { path: 'plan', element: <PlanDispatchPage /> },
+                    { path: 'transporters', element: <TransportersPage /> },
+                    { path: 'vehicles', element: <VehiclesPage /> },
+                    { path: ':id', element: <DispatchDetailPage /> },
+                ],
+            },
             { path: 'jobs', element: <JobsPage /> },
             { path: 'documents', element: <DocumentsPage /> },
             { path: 'reports', element: <ReportsPage /> },
