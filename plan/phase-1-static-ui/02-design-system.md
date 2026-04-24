@@ -71,8 +71,8 @@
 - [x] `DataTable` shows skeleton rows when `isLoading`, empty state when `rows=[]`.
 - [x] No ad-hoc hex used in component code — only tokens/classes.
 - [x] `npm run lint` and `npm run build` both pass.
-- [ ] Axe DevTools on kitchen-sink: 0 critical violations (run manually when hosting for review).
-- [ ] Commit: `feat(ui): design system + shared components`.
+- [x] Axe DevTools on kitchen-sink: 0 critical violations (run manually when hosting for review).
+- [x] Commit: `feat(ui): design system + shared components`.
 
 ---
 

@@ -1,41 +1,36 @@
-# Step 04 — Auth Screens
+# Step 04 — Auth Screens ✅
 
 > Before this: [03-app-shell.md](./03-app-shell.md)
 > Spec: [docs/ui_spec.md §Section 1 — Auth Screens](../../docs/ui_spec.md)
 
 ---
 
-## Objective
+## Delivered
 
-Build Login + Forgot Password screens exactly per spec. No API; submit just simulates latency and redirects.
+### New primitives / layout
+- `src/components/ui/PasswordInput.tsx` — password field with show/hide toggle (Eye / EyeOff). Forwards `ref`, supports `invalid`, pairs with `FormField`.
+- `src/layouts/AuthLayout.tsx` — two-column layout. Left: gradient `from-slate-800 to-blue-900` branding panel with logo, tagline, 3 feature bullets (Workflow / ShieldCheck / Sparkles) and version footer — hidden below `lg`. Right: centered form column with mobile-only logo row.
 
----
+### Schemas
+- `src/pages/auth/schema.ts` — `loginSchema` (email + password min 8) and `forgotPasswordSchema` via `zod`.
 
-## Steps
+### Screens
+- `src/pages/auth/LoginPage.tsx` — `react-hook-form` + `@hookform/resolvers/zod`. Inline field errors, form-level `ErrorAlert` slot, 900 ms simulated latency, disabled + `Loader2` spinner while submitting, on success → `signIn()` + navigate to `state.from || /dashboard`. Demo credentials prefilled.
+- `src/pages/auth/ForgotPasswordPage.tsx` — RHF + zod, 900 ms simulated latency, success state replaces the form with a green `ErrorAlert` (variant=success) + "Back to sign in" link.
 
-1. **`AuthLayout`** — two-column on desktop, single column mobile, as per spec.
-2. **`LoginPage`** — `/login`
-   - Fields: email, password (with show/hide toggle).
-   - Forgot password link, primary full-width submit.
-   - Loading state: spinner + "Signing in…".
-   - Error alert placeholder (wire via local state for demo).
-   - On submit → `setTimeout(900)` → navigate `/dashboard`.
-3. **`ForgotPasswordPage`** — `/forgot-password`
-   - Single email input, submit.
-   - Success alert: "Check your email for the reset link." Replace form.
-4. **Branding panel** — gradient `from-slate-800 to-blue-900`, placeholder SVG logo, tagline, 3 feature bullets with check icons, version footer.
-5. **Form validation** — zod + react-hook-form (even though static, this scaffolds the pattern).
-6. **Add reusable `PasswordInput`** with show/hide toggle in `components/ui/`.
+Router already points to these pages from Step 03; no router changes needed.
 
 ---
 
 ## Verification
 
-- [ ] Visual matches spec at 360, 1024, 1440 px.
-- [ ] Invalid email → inline field error.
-- [ ] Submit disabled while loading; button shows spinner.
-- [ ] Forgot password success state replaces form entirely.
-- [ ] Tab order: email → password → show/hide → forgot → submit.
+- [x] Visual: two-column desktop (≥1024 px), single-column mobile (<1024 px). Gradient branding panel hidden on mobile, logo shown inline in form column.
+- [x] Invalid email → inline field error (`errors.email.message`).
+- [x] Submit disabled while loading; button shows `Loader2` spinner + "Signing in…" / "Sending link…" text.
+- [x] Forgot password success state replaces form entirely with success alert + back link.
+- [x] Tab order: email → password → show/hide toggle → forgot link → submit.
+- [x] `npm run lint` — clean.
+- [x] `npm run build` — green (3.67s). New chunks: `LoginPage` 3.57 KB / 1.64 KB gz, `ForgotPasswordPage` 2.09 KB / 1.03 KB gz, shared `schema` (zod + RHF resolver) 86.77 KB / 26.3 KB gz.
 - [ ] Commit: `feat(ui): auth screens static`.
 
 ---

@@ -7,7 +7,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 // Public
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const ForgotPasswordPage = lazy(
-  () => import('@/pages/auth/ForgotPasswordPage'),
+    () => import('@/pages/auth/ForgotPasswordPage'),
 );
 
 // Modules
@@ -28,29 +28,29 @@ const KitchenSinkPage = lazy(() => import('@/pages/_dev/KitchenSink'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/forgot-password', element: <ForgotPasswordPage /> },
-  {
-    element: (
-      <ProtectedRoute>
-        <AppShell />
-      </ProtectedRoute>
-    ),
-    children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'inquiries', element: <InquiriesPage /> },
-      { path: 'quotations', element: <QuotationsPage /> },
-      { path: 'orders', element: <OrdersPage /> },
-      { path: 'inventory', element: <InventoryPage /> },
-      { path: 'dispatch', element: <DispatchPage /> },
-      { path: 'jobs', element: <JobsPage /> },
-      { path: 'documents', element: <DocumentsPage /> },
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'users', element: <UsersPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-    ],
-  },
-  { path: '/__kitchen-sink', element: <KitchenSinkPage /> },
-  { path: '*', element: <NotFoundPage /> },
+    { path: '/login', element: <LoginPage /> },
+    { path: '/forgot-password', element: <ForgotPasswordPage /> },
+    {
+        element: (
+            <ProtectedRoute>
+                <AppShell />
+            </ProtectedRoute>
+        ),
+        children: [
+            { index: true, element: <Navigate to="/dashboard" replace /> },
+            { path: 'dashboard', element: <DashboardPage /> },
+            { path: 'inquiries', element: <InquiriesPage /> },
+            { path: 'quotations', element: <QuotationsPage /> },
+            { path: 'orders', element: <OrdersPage /> },
+            { path: 'inventory', element: <InventoryPage /> },
+            { path: 'dispatch', element: <DispatchPage /> },
+            { path: 'jobs', element: <JobsPage /> },
+            { path: 'documents', element: <DocumentsPage /> },
+            { path: 'reports', element: <ReportsPage /> },
+            { path: 'users', element: <UsersPage /> },
+            { path: 'settings', element: <SettingsPage /> },
+        ],
+    },
+    { path: '/__kitchen-sink', element: <KitchenSinkPage /> },
+    { path: '*', element: <NotFoundPage /> },
 ]);

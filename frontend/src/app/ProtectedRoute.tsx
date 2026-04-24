@@ -8,13 +8,13 @@ import { useAuth } from './auth-context';
  * after successful sign-in.
  */
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
+    const { isAuthenticated } = useAuth();
+    const location = useLocation();
 
-  if (!isAuthenticated) {
-    return (
-      <Navigate to="/login" replace state={{ from: location.pathname }} />
-    );
-  }
-  return <>{children}</>;
+    if (!isAuthenticated) {
+        return (
+            <Navigate to="/login" replace state={{ from: location.pathname }} />
+        );
+    }
+    return <>{children}</>;
 }
