@@ -7,9 +7,9 @@
 
 ## Endpoint
 
-| Method | Path                          | Purpose                              |
-| ------ | ----------------------------- | ------------------------------------ |
-| GET    | `/api/v1/search/`             | cross-resource type-ahead            |
+| Method | Path              | Purpose                   |
+| ------ | ----------------- | ------------------------- |
+| GET    | `/api/v1/search/` | cross-resource type-ahead |
 
 ### Query parameters
 
@@ -29,11 +29,11 @@
       "subtitle": "Sales · open · ₹12.4L",
       "href": "/inquiries/inq_42",
       "matched_field": "number",
-      "score": 0.92
-    }
+      "score": 0.92,
+    },
     // ...
   ],
-  "took_ms": 18
+  "took_ms": 18,
 }
 ```
 

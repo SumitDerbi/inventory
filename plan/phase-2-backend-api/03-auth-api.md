@@ -6,35 +6,35 @@
 
 ## Endpoints
 
-| Method           | Path                                          | Purpose                             |
-| ---------------- | --------------------------------------------- | ----------------------------------- |
-| POST             | `/api/auth/login`                             | email + password → access + refresh |
-| POST             | `/api/auth/refresh`                           | refresh → new access                |
-| POST             | `/api/auth/logout`                            | blacklist refresh                   |
-| POST             | `/api/auth/forgot`                            | email → reset token (email stub)    |
-| POST             | `/api/auth/reset`                             | token + new password                |
-| POST             | `/api/auth/change-password`                   | old + new (auth required)           |
-| GET              | `/api/auth/me`                                | current user profile                |
-| PATCH            | `/api/auth/me`                                | update profile fields               |
-| GET              | `/api/auth/sessions`                          | active sessions for current user    |
-| POST             | `/api/auth/sessions/:id/logout`               | revoke a single session             |
-| POST             | `/api/auth/sessions/logout-others`            | revoke all except current           |
-| GET              | `/api/auth/2fa/status`                        | `{ enabled, method, enrolled_at }`  |
-| POST             | `/api/auth/2fa/enable`                        | start enrolment → secret + qr_svg   |
-| POST             | `/api/auth/2fa/confirm`                       | `{ code }` → finalises + recovery   |
-| POST             | `/api/auth/2fa/disable`                       | `{ password }` required             |
-| GET              | `/api/auth/2fa/recovery-codes`                | masked list (`***-****`)            |
-| POST             | `/api/auth/2fa/recovery-codes/regenerate`     | `{ password }` → new code set       |
-| GET              | `/api/users/`                                 | list (admin)                        |
-| POST             | `/api/users/`                                 | create (admin)                      |
-| GET              | `/api/users/:id`                              | retrieve                            |
-| PATCH            | `/api/users/:id`                              | update                              |
-| DELETE           | `/api/users/:id`                              | soft delete                         |
-| GET              | `/api/roles/`                                 | list                                |
-| POST             | `/api/roles/`                                 | create                              |
-| GET/PATCH/DELETE | `/api/roles/:id`                              |                                     |
-| GET              | `/api/roles/:id/permissions`                  | matrix of module × action           |
-| PUT              | `/api/roles/:id/permissions`                  | replace matrix                      |
+| Method           | Path                                      | Purpose                             |
+| ---------------- | ----------------------------------------- | ----------------------------------- |
+| POST             | `/api/auth/login`                         | email + password → access + refresh |
+| POST             | `/api/auth/refresh`                       | refresh → new access                |
+| POST             | `/api/auth/logout`                        | blacklist refresh                   |
+| POST             | `/api/auth/forgot`                        | email → reset token (email stub)    |
+| POST             | `/api/auth/reset`                         | token + new password                |
+| POST             | `/api/auth/change-password`               | old + new (auth required)           |
+| GET              | `/api/auth/me`                            | current user profile                |
+| PATCH            | `/api/auth/me`                            | update profile fields               |
+| GET              | `/api/auth/sessions`                      | active sessions for current user    |
+| POST             | `/api/auth/sessions/:id/logout`           | revoke a single session             |
+| POST             | `/api/auth/sessions/logout-others`        | revoke all except current           |
+| GET              | `/api/auth/2fa/status`                    | `{ enabled, method, enrolled_at }`  |
+| POST             | `/api/auth/2fa/enable`                    | start enrolment → secret + qr_svg   |
+| POST             | `/api/auth/2fa/confirm`                   | `{ code }` → finalises + recovery   |
+| POST             | `/api/auth/2fa/disable`                   | `{ password }` required             |
+| GET              | `/api/auth/2fa/recovery-codes`            | masked list (`***-****`)            |
+| POST             | `/api/auth/2fa/recovery-codes/regenerate` | `{ password }` → new code set       |
+| GET              | `/api/users/`                             | list (admin)                        |
+| POST             | `/api/users/`                             | create (admin)                      |
+| GET              | `/api/users/:id`                          | retrieve                            |
+| PATCH            | `/api/users/:id`                          | update                              |
+| DELETE           | `/api/users/:id`                          | soft delete                         |
+| GET              | `/api/roles/`                             | list                                |
+| POST             | `/api/roles/`                             | create                              |
+| GET/PATCH/DELETE | `/api/roles/:id`                          |                                     |
+| GET              | `/api/roles/:id/permissions`              | matrix of module × action           |
+| PUT              | `/api/roles/:id/permissions`              | replace matrix                      |
 
 ---
 

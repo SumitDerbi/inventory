@@ -7,25 +7,25 @@
 
 ## Endpoints
 
-| Method | Path                                        | Purpose                     |
-| ------ | ------------------------------------------- | --------------------------- |
-| GET    | `/api/v1/orders/`                           | list                        |
-| POST   | `/api/v1/orders/`                           | create (from quotation_id)  |
-| GET    | `/api/v1/orders/:id`                        | detail                      |
-| PATCH  | `/api/v1/orders/:id`                        | edit (stage-gated)          |
-| POST   | `/api/v1/orders/:id/stage`                  | `{ next_stage }`            |
-| POST   | `/api/v1/orders/:id/cancel`                 | reason required             |
-| POST   | `/api/v1/orders/:id/amend`                  | kicks approval              |
-| GET    | `/api/v1/orders/:id/mrp`                    | stock availability per item |
-| POST   | `/api/v1/orders/:id/reserve`                | reserve stock               |
-| POST   | `/api/v1/orders/:id/release`                | release reservation         |
-| CRUD   | `/api/v1/orders/:id/delivery-schedules`     |                             |
-| CRUD   | `/api/v1/orders/:id/material-checklist`     |                             |
-| CRUD   | `/api/v1/orders/:id/installation-readiness` |                             |
-| POST   | `/api/v1/orders/:id/assign`                 | `{ user_id }`               |
-| POST   | `/api/v1/orders/bulk-assign`                | `{ order_ids[], user_id }`  |
+| Method | Path                                        | Purpose                                                  |
+| ------ | ------------------------------------------- | -------------------------------------------------------- |
+| GET    | `/api/v1/orders/`                           | list                                                     |
+| POST   | `/api/v1/orders/`                           | create (from quotation_id)                               |
+| GET    | `/api/v1/orders/:id`                        | detail                                                   |
+| PATCH  | `/api/v1/orders/:id`                        | edit (stage-gated)                                       |
+| POST   | `/api/v1/orders/:id/stage`                  | `{ next_stage }`                                         |
+| POST   | `/api/v1/orders/:id/cancel`                 | reason required                                          |
+| POST   | `/api/v1/orders/:id/amend`                  | kicks approval                                           |
+| GET    | `/api/v1/orders/:id/mrp`                    | stock availability per item                              |
+| POST   | `/api/v1/orders/:id/reserve`                | reserve stock                                            |
+| POST   | `/api/v1/orders/:id/release`                | release reservation                                      |
+| CRUD   | `/api/v1/orders/:id/delivery-schedules`     |                                                          |
+| CRUD   | `/api/v1/orders/:id/material-checklist`     |                                                          |
+| CRUD   | `/api/v1/orders/:id/installation-readiness` |                                                          |
+| POST   | `/api/v1/orders/:id/assign`                 | `{ user_id }`                                            |
+| POST   | `/api/v1/orders/bulk-assign`                | `{ order_ids[], user_id }`                               |
 | POST   | `/api/v1/orders/bulk-ready`                 | `{ order_ids[] }` — stage advances per row if gates pass |
-| POST   | `/api/v1/orders/bulk-export`                | `{ order_ids[], format }` → file |
+| POST   | `/api/v1/orders/bulk-export`                | `{ order_ids[], format }` → file                         |
 
 ---
 

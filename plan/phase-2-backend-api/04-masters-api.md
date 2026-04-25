@@ -34,10 +34,10 @@ DELETE /api/v1/<resource>/:id        soft delete
 
 Driven by the Phase 1 merge wizard ([phase-1-static-ui/16-ui-gap-closure.md §16.5](../phase-1-static-ui/16-ui-gap-closure.md)).
 
-| Method | Path                                          | Purpose                                                  |
-| ------ | --------------------------------------------- | -------------------------------------------------------- |
-| POST   | `/api/v1/customers/:id/merge-preview`         | dry-run — returns conflicting fields and impact counts  |
-| POST   | `/api/v1/customers/:id/merge`                 | perform merge into `target_id` with field choices        |
+| Method | Path                                  | Purpose                                                |
+| ------ | ------------------------------------- | ------------------------------------------------------ |
+| POST   | `/api/v1/customers/:id/merge-preview` | dry-run — returns conflicting fields and impact counts |
+| POST   | `/api/v1/customers/:id/merge`         | perform merge into `target_id` with field choices      |
 
 Request body for merge:
 
@@ -47,9 +47,9 @@ Request body for merge:
   "field_choices": {
     "name": "target",
     "gst_number": "source",
-    "addresses": "both",     // multi-value fields can union
-    "contacts": "both"
-  }
+    "addresses": "both", // multi-value fields can union
+    "contacts": "both",
+  },
 }
 ```
 

@@ -1,4 +1,5 @@
-import { Bell, ChevronRight, KeyRound, LogOut, Menu, User } from 'lucide-react';
+import { Bell, ChevronRight, KeyRound, LogOut, Menu, Search, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import {
@@ -9,6 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
+import { GlobalSearch } from '@/components/ui/GlobalSearch';
 import { NAV_BY_PATH } from '@/app/navConfig';
 import { useAuth } from '@/app/auth-context';
 import { formatRelative } from '@/lib/format';
@@ -25,6 +27,18 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
     const crumbs = buildBreadcrumb(location.pathname);
     const summary = notificationsSummary();
     const recentNotifications = notifications.slice(0, 5);
+    const [searchOpen, setSearchOpen] = useState(false);
+
+    useEffect(() => {
+        function onKey(e: KeyboardEvent) {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                setSearchOpen((v) => !v);
+            }
+        }
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
 
     return (
         <header className="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4">
@@ -70,6 +84,27 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
             </nav>
 
             <div className="ml-auto flex items-center gap-1">
+                <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Open search"
+                    className="hidden h-9 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:flex"
+                >
+                    <Search className="size-4" aria-hidden="true" />
+                    <span className="hidden md:inline">Search…</span>
+                    <kbd className="ml-2 hidden rounded border border-slate-200 bg-white px-1 font-mono text-[10px] text-slate-400 md:inline">
+                        Ctrl K
+                    </kbd>
+                </button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open search"
+                    className="sm:hidden"
+                    onClick={() => setSearchOpen(true)}
+                >
+                    <Search className="size-5" aria-hidden="true" />
+                </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
@@ -159,6 +194,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+            <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
         </header>
     );
 }
