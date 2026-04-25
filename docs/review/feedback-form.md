@@ -51,12 +51,12 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 3. Inquiries
 
-| Aspect          | Score | Notes |
-| --------------- | ----- | ----- |
-| List / filters  |       |       |
-| Detail tabs     |       |       |
-| Form drawer     |       |       |
-| Convert flow    |       |       |
+| Aspect         | Score | Notes |
+| -------------- | ----- | ----- |
+| List / filters |       |       |
+| Detail tabs    |       |       |
+| Form drawer    |       |       |
+| Convert flow   |       |       |
 
 - Missing:
 - Extra:
@@ -65,12 +65,12 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 4. Quotations
 
-| Aspect           | Score | Notes |
-| ---------------- | ----- | ----- |
-| List / filters   |       |       |
-| Editor (line items, totals) |  |   |
-| Versioning + approval flow |  |    |
-| PDF preview      |       |       |
+| Aspect                      | Score | Notes |
+| --------------------------- | ----- | ----- |
+| List / filters              |       |       |
+| Editor (line items, totals) |       |       |
+| Versioning + approval flow  |       |       |
+| PDF preview                 |       |       |
 
 - Missing:
 - Extra:
@@ -79,12 +79,12 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 5. Sales orders
 
-| Aspect            | Score | Notes |
-| ----------------- | ----- | ----- |
-| List              |       |       |
-| Stage stepper     |       |       |
-| MRP + readiness   |       |       |
-| Install handover  |       |       |
+| Aspect           | Score | Notes |
+| ---------------- | ----- | ----- |
+| List             |       |       |
+| Stage stepper    |       |       |
+| MRP + readiness  |       |       |
+| Install handover |       |       |
 
 - Missing:
 - Extra:
@@ -93,13 +93,13 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 6. Inventory
 
-| Aspect              | Score | Notes |
-| ------------------- | ----- | ----- |
-| Products list       |       |       |
-| Product detail      |       |       |
-| Reorder / reservations | |        |
-| Adjustments         |       |       |
-| Warehouses          |       |       |
+| Aspect                 | Score | Notes |
+| ---------------------- | ----- | ----- |
+| Products list          |       |       |
+| Product detail         |       |       |
+| Reorder / reservations |       |       |
+| Adjustments            |       |       |
+| Warehouses             |       |       |
 
 - Missing:
 - Extra:
@@ -108,12 +108,12 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 7. Dispatch
 
-| Aspect             | Score | Notes |
-| ------------------ | ----- | ----- |
-| List / filters     |       |       |
-| Plan dispatch wizard |     |       |
-| Detail tabs (POD, exceptions) | |  |
-| Transporters / vehicles |  |       |
+| Aspect                        | Score | Notes |
+| ----------------------------- | ----- | ----- |
+| List / filters                |       |       |
+| Plan dispatch wizard          |       |       |
+| Detail tabs (POD, exceptions) |       |       |
+| Transporters / vehicles       |       |       |
 
 - Missing:
 - Extra:
@@ -122,12 +122,12 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 8. Jobs (engineer / installation)
 
-| Aspect          | Score | Notes |
-| --------------- | ----- | ----- |
-| List / filters  |       |       |
-| Detail (checklist, photos, observations) | | |
-| Scheduler       |       |       |
-| Engineers master|       |       |
+| Aspect                                   | Score | Notes |
+| ---------------------------------------- | ----- | ----- |
+| List / filters                           |       |       |
+| Detail (checklist, photos, observations) |       |       |
+| Scheduler                                |       |       |
+| Engineers master                         |       |       |
 
 - Missing:
 - Extra:
@@ -150,11 +150,11 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 10. Reports
 
-| Aspect           | Score | Notes |
-| ---------------- | ----- | ----- |
-| Hub + saved views|       |       |
-| Viewer (filters, charts, table) | | |
-| Report coverage  |       |       |
+| Aspect                          | Score | Notes |
+| ------------------------------- | ----- | ----- |
+| Hub + saved views               |       |       |
+| Viewer (filters, charts, table) |       |       |
+| Report coverage                 |       |       |
 
 - Missing:
 - Extra:
@@ -163,13 +163,13 @@ Severity legend: 🔴 blocker · 🟠 major · 🟡 minor · 🟢 nice-to-have.
 
 ## 11. Admin
 
-| Aspect            | Score | Notes |
-| ----------------- | ----- | ----- |
-| Users list / drawer |     |       |
-| Roles & permissions |     |       |
-| Settings tabs     |       |       |
-| Profile + change password | |     |
-| Notification center |     |       |
+| Aspect                    | Score | Notes |
+| ------------------------- | ----- | ----- |
+| Users list / drawer       |       |       |
+| Roles & permissions       |       |       |
+| Settings tabs             |       |       |
+| Profile + change password |       |       |
+| Notification center       |       |       |
 
 - Missing:
 - Extra:

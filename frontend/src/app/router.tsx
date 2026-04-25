@@ -79,69 +79,69 @@ const devRoutes = import.meta.env.DEV
 
 export const router = createBrowserRouter(
     [
-    { path: '/login', element: <LoginPage /> },
-    { path: '/forgot-password', element: <ForgotPasswordPage /> },
-    {
-        element: (
-            <ProtectedRoute>
-                <AppShell />
-            </ProtectedRoute>
-        ),
-        children: [
-            { index: true, element: <Navigate to="/dashboard" replace /> },
-            { path: 'dashboard', element: <DashboardPage /> },
-            { path: 'inquiries', element: <InquiriesPage /> },
-            { path: 'inquiries/:id', element: <InquiryDetailPage /> },
-            { path: 'quotations', element: <QuotationsPage /> },
-            { path: 'quotations/:id', element: <QuotationDetailPage /> },
-            { path: 'orders', element: <OrdersPage /> },
-            { path: 'orders/:id', element: <OrderDetailPage /> },
-            {
-                path: 'inventory',
-                element: <InventoryLayout />,
-                children: [
-                    { index: true, element: <Navigate to="products" replace /> },
-                    { path: 'products', element: <ProductsListPage /> },
-                    { path: 'products/:id', element: <ProductDetailPage /> },
-                    { path: 'reorder', element: <ReorderPage /> },
-                    { path: 'reservations', element: <ReservationsPage /> },
-                    { path: 'adjustments', element: <AdjustmentsPage /> },
-                    { path: 'warehouses', element: <WarehousesPage /> },
-                ],
-            },
-            {
-                path: 'dispatch',
-                element: <DispatchLayout />,
-                children: [
-                    { index: true, element: <DispatchListPage /> },
-                    { path: 'plan', element: <PlanDispatchPage /> },
-                    { path: 'transporters', element: <TransportersPage /> },
-                    { path: 'vehicles', element: <VehiclesPage /> },
-                    { path: ':id', element: <DispatchDetailPage /> },
-                ],
-            },
-            {
-                path: 'jobs',
-                element: <JobsLayout />,
-                children: [
-                    { index: true, element: <JobsListPage /> },
-                    { path: 'calendar', element: <SchedulerPage /> },
-                    { path: 'engineers', element: <EngineersPage /> },
-                    { path: ':id', element: <JobDetailPage /> },
-                ],
-            },
-            { path: 'documents', element: <DocumentsPage /> },
-            { path: 'reports', element: <ReportsPage /> },
-            { path: 'reports/:slug', element: <ReportViewerPage /> },
-            { path: 'users', element: <UsersPage /> },
-            { path: 'users/roles', element: <RolesPage /> },
-            { path: 'settings', element: <SettingsPage /> },
-            { path: 'profile', element: <ProfilePage /> },
-            { path: 'notifications', element: <NotificationCenterPage /> },
-        ],
-    },
-    { path: '*', element: <NotFoundPage /> },
-    ...devRoutes,
-],
+        { path: '/login', element: <LoginPage /> },
+        { path: '/forgot-password', element: <ForgotPasswordPage /> },
+        {
+            element: (
+                <ProtectedRoute>
+                    <AppShell />
+                </ProtectedRoute>
+            ),
+            children: [
+                { index: true, element: <Navigate to="/dashboard" replace /> },
+                { path: 'dashboard', element: <DashboardPage /> },
+                { path: 'inquiries', element: <InquiriesPage /> },
+                { path: 'inquiries/:id', element: <InquiryDetailPage /> },
+                { path: 'quotations', element: <QuotationsPage /> },
+                { path: 'quotations/:id', element: <QuotationDetailPage /> },
+                { path: 'orders', element: <OrdersPage /> },
+                { path: 'orders/:id', element: <OrderDetailPage /> },
+                {
+                    path: 'inventory',
+                    element: <InventoryLayout />,
+                    children: [
+                        { index: true, element: <Navigate to="products" replace /> },
+                        { path: 'products', element: <ProductsListPage /> },
+                        { path: 'products/:id', element: <ProductDetailPage /> },
+                        { path: 'reorder', element: <ReorderPage /> },
+                        { path: 'reservations', element: <ReservationsPage /> },
+                        { path: 'adjustments', element: <AdjustmentsPage /> },
+                        { path: 'warehouses', element: <WarehousesPage /> },
+                    ],
+                },
+                {
+                    path: 'dispatch',
+                    element: <DispatchLayout />,
+                    children: [
+                        { index: true, element: <DispatchListPage /> },
+                        { path: 'plan', element: <PlanDispatchPage /> },
+                        { path: 'transporters', element: <TransportersPage /> },
+                        { path: 'vehicles', element: <VehiclesPage /> },
+                        { path: ':id', element: <DispatchDetailPage /> },
+                    ],
+                },
+                {
+                    path: 'jobs',
+                    element: <JobsLayout />,
+                    children: [
+                        { index: true, element: <JobsListPage /> },
+                        { path: 'calendar', element: <SchedulerPage /> },
+                        { path: 'engineers', element: <EngineersPage /> },
+                        { path: ':id', element: <JobDetailPage /> },
+                    ],
+                },
+                { path: 'documents', element: <DocumentsPage /> },
+                { path: 'reports', element: <ReportsPage /> },
+                { path: 'reports/:slug', element: <ReportViewerPage /> },
+                { path: 'users', element: <UsersPage /> },
+                { path: 'users/roles', element: <RolesPage /> },
+                { path: 'settings', element: <SettingsPage /> },
+                { path: 'profile', element: <ProfilePage /> },
+                { path: 'notifications', element: <NotificationCenterPage /> },
+            ],
+        },
+        { path: '*', element: <NotFoundPage /> },
+        ...devRoutes,
+    ],
     { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' },
 );
