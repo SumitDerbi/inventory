@@ -7,19 +7,19 @@
 
 ## Documents — endpoints
 
-| Method | Path                             | Purpose                       |
-| ------ | -------------------------------- | ----------------------------- |
-| GET    | `/api/v1/documents/`             | list with filters             |
-| POST   | `/api/v1/documents/`             | multipart upload              |
-| GET    | `/api/v1/documents/:id`          | metadata + latest version url |
-| PATCH  | `/api/v1/documents/:id`          | rename / retag / re-classify  |
-| DELETE | `/api/v1/documents/:id`          | soft delete                   |
-| GET    | `/api/v1/documents/:id/versions` |                               |
-| POST   | `/api/v1/documents/:id/versions` | upload new version            |
-| GET    | `/api/v1/documents/:id/download` | signed URL (15 min)           |
-| POST   | `/api/v1/documents/bulk-download`| zip of selected docs (ids[])  |
-| POST   | `/api/v1/documents/:id/share`    | generate share link           |
-| CRUD   | `/api/v1/documents/:id/access`   | per-role / per-user access    |
+| Method | Path                              | Purpose                       |
+| ------ | --------------------------------- | ----------------------------- |
+| GET    | `/api/v1/documents/`              | list with filters             |
+| POST   | `/api/v1/documents/`              | multipart upload              |
+| GET    | `/api/v1/documents/:id`           | metadata + latest version url |
+| PATCH  | `/api/v1/documents/:id`           | rename / retag / re-classify  |
+| DELETE | `/api/v1/documents/:id`           | soft delete                   |
+| GET    | `/api/v1/documents/:id/versions`  |                               |
+| POST   | `/api/v1/documents/:id/versions`  | upload new version            |
+| GET    | `/api/v1/documents/:id/download`  | signed URL (15 min)           |
+| POST   | `/api/v1/documents/bulk-download` | zip of selected docs (ids[])  |
+| POST   | `/api/v1/documents/:id/share`     | generate share link           |
+| CRUD   | `/api/v1/documents/:id/access`    | per-role / per-user access    |
 
 ### Filters
 
