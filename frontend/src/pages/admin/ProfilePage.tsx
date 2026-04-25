@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
-import { KeyRound, Save, ShieldCheck, UserRound } from 'lucide-react';
+import {
+    KeyRound,
+    LogOut,
+    Monitor,
+    Save,
+    ShieldCheck,
+    Smartphone,
+    Tablet,
+    UserRound,
+} from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -24,6 +33,7 @@ import {
     users,
     type MockUser,
 } from '@/mocks/users';
+import { activeSessions, type ActiveSession } from '@/mocks/sessions';
 
 interface PasswordRule {
     label: string;
@@ -49,6 +59,29 @@ export default function ProfilePage() {
     const [mobile, setMobile] = useState(me.mobile ?? '');
     const [designation, setDesignation] = useState(me.designation ?? '');
     const [notes, setNotes] = useState(me.notes ?? '');
+    const [sessions, setSessions] = useState<ActiveSession[]>(activeSessions);
+    const [signOutAllOpen, setSignOutAllOpen] = useState(false);
+
+    function signOutSession(id: string) {
+        const target = sessions.find((s) => s.id === id);
+        setSessions((curr) => curr.filter((s) => s.id !== id));
+        push({
+            variant: 'success',
+            title: 'Signed out',
+            description: `${target?.device ?? 'Session'} — ${target?.location ?? ''}`.trim(),
+        });
+    }
+
+    function signOutAllOthers() {
+        const removed = sessions.filter((s) => !s.current).length;
+        setSessions((curr) => curr.filter((s) => s.current));
+        push({
+            variant: 'success',
+            title: 'Signed out everywhere else',
+            description: `${removed} session${removed === 1 ? '' : 's'} ended.`,
+        });
+        setSignOutAllOpen(false);
+    }
 
     function handleSave() {
         push({
@@ -175,8 +208,118 @@ export default function ProfilePage() {
                 </section>
             </div>
 
+            <section className="mt-4 rounded-xl border border-slate-200 bg-white">
+                <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                    <div>
+                        <h2 className="text-base font-semibold text-slate-800">
+                            Signed-in devices
+                        </h2>
+                        <p className="text-sm text-slate-500">
+                            These devices are currently signed in to your account.
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={sessions.filter((s) => !s.current).length === 0}
+                        onClick={() => setSignOutAllOpen(true)}
+                    >
+                        <LogOut className="size-4" aria-hidden="true" />
+                        Sign out everywhere else
+                    </Button>
+                </header>
+                <ul className="divide-y divide-slate-100">
+                    {sessions.map((s) => (
+                        <li
+                            key={s.id}
+                            className="flex flex-wrap items-center gap-4 px-5 py-3"
+                        >
+                            <span
+                                className="flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600"
+                                aria-hidden="true"
+                            >
+                                <DeviceIcon device={s.device} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="truncate text-sm font-medium text-slate-800">
+                                        {s.device} · {s.browser}
+                                    </p>
+                                    {s.current && (
+                                        <Badge tone="green">Current</Badge>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500">
+                                    {s.os} · {s.location} · {s.ip} · last active{' '}
+                                    {formatRelative(s.lastSeenAt)}
+                                </p>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={s.current}
+                                onClick={() => signOutSession(s.id)}
+                            >
+                                <LogOut className="size-4" aria-hidden="true" />
+                                Sign out
+                            </Button>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+
             <ChangePasswordDialog open={open} onOpenChange={setOpen} />
+            <SignOutAllDialog
+                open={signOutAllOpen}
+                onOpenChange={setSignOutAllOpen}
+                count={sessions.filter((s) => !s.current).length}
+                onConfirm={signOutAllOthers}
+            />
         </div>
+    );
+}
+
+function DeviceIcon({ device }: { device: string }) {
+    const d = device.toLowerCase();
+    if (d.includes('iphone') || d.includes('android phone'))
+        return <Smartphone className="size-5" aria-hidden="true" />;
+    if (d.includes('tablet') || d.includes('ipad'))
+        return <Tablet className="size-5" aria-hidden="true" />;
+    return <Monitor className="size-5" aria-hidden="true" />;
+}
+
+function SignOutAllDialog({
+    open,
+    onOpenChange,
+    count,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    count: number;
+    onConfirm: () => void;
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Sign out everywhere else?</DialogTitle>
+                    <DialogDescription>
+                        This will end {count} other session{count === 1 ? '' : 's'}.
+                        You will remain signed in on this device.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button variant="danger" onClick={onConfirm}>
+                        <LogOut className="size-4" aria-hidden="true" />
+                        Sign out others
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
