@@ -90,11 +90,10 @@ export default function CustomerDetailPage() {
                         key={t}
                         type="button"
                         onClick={() => setTab(t)}
-                        className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                            tab === t
+                        className={`rounded-md px-3 py-1.5 text-sm transition-colors ${tab === t
                                 ? 'bg-primary/10 text-primary'
                                 : 'text-slate-600 hover:bg-slate-50'
-                        }`}
+                            }`}
                     >
                         {t}
                     </button>
@@ -134,8 +133,8 @@ export default function CustomerDetailPage() {
                                         customer.status === 'active'
                                             ? 'green'
                                             : customer.status === 'merged'
-                                            ? 'amber'
-                                            : 'neutral'
+                                                ? 'amber'
+                                                : 'neutral'
                                     }
                                 >
                                     {customer.status}
@@ -194,11 +193,11 @@ export default function CustomerDetailPage() {
                 {(tab === 'Orders' ||
                     tab === 'Quotations' ||
                     tab === 'Documents') && (
-                    <p className="text-sm text-slate-500">
-                        Linked {tab.toLowerCase()} will appear here once data is
-                        wired up to this customer record.
-                    </p>
-                )}
+                        <p className="text-sm text-slate-500">
+                            Linked {tab.toLowerCase()} will appear here once data is
+                            wired up to this customer record.
+                        </p>
+                    )}
 
                 {tab === 'Activity' && (
                     <ul className="divide-y divide-slate-100">

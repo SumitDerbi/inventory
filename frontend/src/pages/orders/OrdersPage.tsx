@@ -399,8 +399,8 @@ export default function OrdersPage() {
                             title={
                                 readyBlocked.length > 0
                                     ? `Blocked: ${readyBlocked
-                                          .map((o) => o.orderNumber)
-                                          .join(', ')}`
+                                        .map((o) => o.orderNumber)
+                                        .join(', ')}`
                                     : undefined
                             }
                             onClick={() => setBulkReadyOpen(true)}

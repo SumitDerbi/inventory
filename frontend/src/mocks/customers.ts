@@ -519,31 +519,31 @@ export function previewMerge(sourceId: string, targetId: string): MergePreview {
         get: (c: Customer) => string;
         multi?: boolean;
     }> = [
-        { field: 'name', label: 'Display name', get: (c) => c.name },
-        { field: 'legalName', label: 'Legal name', get: (c) => c.legalName ?? '' },
-        { field: 'gstNumber', label: 'GST number', get: (c) => c.gstNumber ?? '' },
-        { field: 'pan', label: 'PAN', get: (c) => c.pan ?? '' },
-        {
-            field: 'primaryContact',
-            label: 'Primary contact',
-            get: (c) => `${c.primaryContact.name} · ${c.primaryContact.phone}`,
-        },
-        { field: 'industry', label: 'Industry', get: (c) => c.industry ?? '' },
-        { field: 'territory', label: 'Territory', get: (c) => c.territory ?? '' },
-        { field: 'segment', label: 'Segment', get: (c) => c.segment ?? '' },
-        {
-            field: 'contacts',
-            label: 'Contacts',
-            get: (c) => `${c.contacts.length} contact(s)`,
-            multi: true,
-        },
-        {
-            field: 'addresses',
-            label: 'Addresses',
-            get: (c) => `${c.addresses.length} address(es)`,
-            multi: true,
-        },
-    ];
+            { field: 'name', label: 'Display name', get: (c) => c.name },
+            { field: 'legalName', label: 'Legal name', get: (c) => c.legalName ?? '' },
+            { field: 'gstNumber', label: 'GST number', get: (c) => c.gstNumber ?? '' },
+            { field: 'pan', label: 'PAN', get: (c) => c.pan ?? '' },
+            {
+                field: 'primaryContact',
+                label: 'Primary contact',
+                get: (c) => `${c.primaryContact.name} · ${c.primaryContact.phone}`,
+            },
+            { field: 'industry', label: 'Industry', get: (c) => c.industry ?? '' },
+            { field: 'territory', label: 'Territory', get: (c) => c.territory ?? '' },
+            { field: 'segment', label: 'Segment', get: (c) => c.segment ?? '' },
+            {
+                field: 'contacts',
+                label: 'Contacts',
+                get: (c) => `${c.contacts.length} contact(s)`,
+                multi: true,
+            },
+            {
+                field: 'addresses',
+                label: 'Addresses',
+                get: (c) => `${c.addresses.length} address(es)`,
+                multi: true,
+            },
+        ];
     for (const f of fieldDefs) {
         const sv = f.get(s);
         const tv = f.get(t);

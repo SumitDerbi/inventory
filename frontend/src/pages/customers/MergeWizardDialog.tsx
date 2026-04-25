@@ -323,11 +323,10 @@ function ChoiceOption({
 }) {
     return (
         <label
-            className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${
-                checked
+            className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${checked
                     ? 'border-primary bg-primary/5'
                     : 'border-slate-200 hover:bg-slate-50'
-            }`}
+                }`}
         >
             <input
                 type="radio"
