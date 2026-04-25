@@ -258,8 +258,8 @@ function SummaryStat({
         tone === 'red'
             ? 'text-red-700'
             : tone === 'sky'
-              ? 'text-sky-700'
-              : 'text-slate-800';
+                ? 'text-sky-700'
+                : 'text-slate-800';
     return (
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-xs uppercase tracking-wide text-slate-400">

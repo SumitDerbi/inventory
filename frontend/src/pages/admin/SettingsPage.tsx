@@ -858,8 +858,8 @@ function IntegrationsTab() {
                                     {i.status === 'connected'
                                         ? 'Manage'
                                         : i.status === 'error'
-                                          ? 'Reconnect'
-                                          : 'Connect'}
+                                            ? 'Reconnect'
+                                            : 'Connect'}
                                 </Button>
                             </div>
                         </div>
