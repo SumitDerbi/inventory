@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+    CheckCircle2,
     Download,
     FileSpreadsheet,
     FileText,
     ShoppingCart,
+    UserPlus,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { FilterBar } from '@/components/ui/FilterBar';
@@ -12,7 +14,16 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Select, Input } from '@/components/ui/FormField';
+import { FormField, Select, Input } from '@/components/ui/FormField';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/Dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -62,6 +73,9 @@ export default function OrdersPage() {
     const [readinessFilter, setReadinessFilter] = useState<'' | 'green' | 'amber' | 'red'>('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+    const [bulkReadyOpen, setBulkReadyOpen] = useState(false);
 
     const rows = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -78,6 +92,49 @@ export default function OrdersPage() {
             return true;
         });
     }, [search, stageFilter, ownerFilter, readinessFilter, fromDate, toDate]);
+
+    // Clear selection when filters change.
+    useEffect(() => {
+        setSelected(new Set());
+    }, [search, stageFilter, ownerFilter, readinessFilter, fromDate, toDate]);
+
+    const allSelected =
+        rows.length > 0 && rows.every((r) => selected.has(r.id));
+    const someSelected = !allSelected && rows.some((r) => selected.has(r.id));
+
+    function toggleAll() {
+        setSelected((curr) => {
+            if (allSelected) {
+                const next = new Set(curr);
+                rows.forEach((r) => next.delete(r.id));
+                return next;
+            }
+            const next = new Set(curr);
+            rows.forEach((r) => next.add(r.id));
+            return next;
+        });
+    }
+
+    function toggleOne(id: string) {
+        setSelected((curr) => {
+            const next = new Set(curr);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }
+
+    function clearSelection() {
+        setSelected(new Set());
+    }
+
+    const selectedOrders = rows.filter((r) => selected.has(r.id));
+    const readyEligible = selectedOrders.filter(
+        (o) => o.stage === 'processing' && o.readinessFlag === 'green',
+    );
+    const readyBlocked = selectedOrders.filter(
+        (o) => !(o.stage === 'processing' && o.readinessFlag === 'green'),
+    );
 
     function reset() {
         setSearch('');
@@ -99,6 +156,33 @@ export default function OrdersPage() {
     type Row = (typeof orders)[number];
 
     const columns: DataTableColumn<Row>[] = [
+        {
+            key: 'select',
+            header: (
+                <input
+                    type="checkbox"
+                    aria-label="Select all rows"
+                    className="size-4 cursor-pointer rounded border-slate-300 text-primary focus:ring-primary/40"
+                    checked={allSelected}
+                    ref={(el) => {
+                        if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={toggleAll}
+                    onClick={(e) => e.stopPropagation()}
+                />
+            ),
+            cell: (row) => (
+                <input
+                    type="checkbox"
+                    aria-label={`Select ${row.orderNumber}`}
+                    className="size-4 cursor-pointer rounded border-slate-300 text-primary focus:ring-primary/40"
+                    checked={selected.has(row.id)}
+                    onChange={() => toggleOne(row.id)}
+                    onClick={(e) => e.stopPropagation()}
+                />
+            ),
+            className: 'w-10',
+        },
         {
             key: 'number',
             header: 'SO #',
@@ -293,6 +377,52 @@ export default function OrdersPage() {
                 }
             />
 
+            {selected.size > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm">
+                    <Badge tone="blue">{selected.size}</Badge>
+                    <span className="text-slate-700">
+                        {selected.size === 1 ? 'order' : 'orders'} selected
+                    </span>
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setBulkAssignOpen(true)}
+                        >
+                            <UserPlus className="size-4" aria-hidden="true" />
+                            Reassign
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={readyEligible.length === 0}
+                            title={
+                                readyBlocked.length > 0
+                                    ? `Blocked: ${readyBlocked
+                                          .map((o) => o.orderNumber)
+                                          .join(', ')}`
+                                    : undefined
+                            }
+                            onClick={() => setBulkReadyOpen(true)}
+                        >
+                            <CheckCircle2 className="size-4" aria-hidden="true" />
+                            Mark ready ({readyEligible.length})
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportAs('csv')}
+                        >
+                            <Download className="size-4" aria-hidden="true" />
+                            Export selected
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={clearSelection}>
+                            Clear
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <DataTable<Row>
                 columns={columns}
                 rows={rows}
@@ -309,6 +439,143 @@ export default function OrdersPage() {
             <p className="mt-3 text-xs text-slate-500">
                 Showing {rows.length} of {orders.length} orders.
             </p>
+
+            <BulkAssignOrdersDialog
+                open={bulkAssignOpen}
+                onOpenChange={setBulkAssignOpen}
+                count={selected.size}
+                onConfirm={(userId) => {
+                    const u = SALES_USERS.find((x) => x.id === userId);
+                    push({
+                        variant: 'success',
+                        title: 'Bulk reassigned',
+                        description: `${selected.size} orders reassigned to ${u?.name ?? 'user'}.`,
+                    });
+                    clearSelection();
+                    setBulkAssignOpen(false);
+                }}
+            />
+            <BulkReadyDialog
+                open={bulkReadyOpen}
+                onOpenChange={setBulkReadyOpen}
+                eligible={readyEligible.map((o) => o.orderNumber)}
+                blocked={readyBlocked.map((o) => o.orderNumber)}
+                onConfirm={() => {
+                    push({
+                        variant: 'success',
+                        title: 'Marked ready',
+                        description: `${readyEligible.length} orders advanced to Ready.`,
+                    });
+                    clearSelection();
+                    setBulkReadyOpen(false);
+                }}
+            />
         </div>
+    );
+}
+
+function BulkAssignOrdersDialog({
+    open,
+    onOpenChange,
+    count,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    count: number;
+    onConfirm: (userId: string) => void;
+}) {
+    const [userId, setUserId] = useState('');
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reassign orders</DialogTitle>
+                    <DialogDescription>
+                        Pick the new owner for {count} selected order
+                        {count === 1 ? '' : 's'}.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="Assignee" required>
+                        <Select
+                            value={userId}
+                            onChange={(e) => setUserId(e.target.value)}
+                        >
+                            <option value="">Select a user…</option>
+                            {SALES_USERS.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                    {u.name}
+                                </option>
+                            ))}
+                        </Select>
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button onClick={() => onConfirm(userId)} disabled={!userId}>
+                        Reassign
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkReadyDialog({
+    open,
+    onOpenChange,
+    eligible,
+    blocked,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    eligible: string[];
+    blocked: string[];
+    onConfirm: () => void;
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Advance to Ready</DialogTitle>
+                    <DialogDescription>
+                        {eligible.length} order(s) will move to the Ready stage.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    {eligible.length > 0 && (
+                        <div className="mb-3">
+                            <p className="text-xs font-semibold uppercase text-emerald-600">
+                                Eligible
+                            </p>
+                            <p className="text-sm text-slate-600">
+                                {eligible.join(', ')}
+                            </p>
+                        </div>
+                    )}
+                    {blocked.length > 0 && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                            <p className="font-semibold">Skipped (gates not met)</p>
+                            <p>{blocked.join(', ')}</p>
+                        </div>
+                    )}
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={onConfirm}
+                        disabled={eligible.length === 0}
+                    >
+                        Mark ready
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+    AlertTriangle,
     Download,
     FileSpreadsheet,
     FileText,
@@ -17,7 +18,16 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
-import { Select } from '@/components/ui/FormField';
+import { FormField, Select, Textarea } from '@/components/ui/FormField';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/Dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -69,6 +79,14 @@ export default function InquiriesPage() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingInquiry, setEditingInquiry] = useState<Inquiry | null>(null);
+    const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+    const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+    const [bulkLostOpen, setBulkLostOpen] = useState(false);
+
+    // Clear selection when filters change.
+    useEffect(() => {
+        setSelected(new Set());
+    }, [search, statusFilter, priorityFilter, sourceFilter, assignedFilter, fromDate, toDate]);
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -433,33 +451,29 @@ export default function InquiriesPage() {
                     <span className="text-slate-700">
                         {selected.size === 1 ? 'inquiry' : 'inquiries'} selected
                     </span>
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                                push({
-                                    variant: 'success',
-                                    title: 'Bulk assign',
-                                    description: `${selected.size} inquiries reassigned.`,
-                                })
-                            }
+                            onClick={() => setBulkAssignOpen(true)}
                         >
                             <UserPlus className="size-4" aria-hidden="true" />
-                            Assign
+                            Reassign
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                                push({
-                                    variant: 'success',
-                                    title: 'Bulk status update',
-                                    description: `${selected.size} inquiries updated.`,
-                                })
-                            }
+                            onClick={() => setBulkStatusOpen(true)}
                         >
                             Change status
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setBulkLostOpen(true)}
+                        >
+                            <AlertTriangle className="size-4" aria-hidden="true" />
+                            Mark lost
                         </Button>
                         <Button
                             variant="outline"
@@ -490,6 +504,50 @@ export default function InquiriesPage() {
                     if (!open) setEditingInquiry(null);
                 }}
                 initial={editingInquiry}
+            />
+
+            <BulkAssignDialog
+                open={bulkAssignOpen}
+                onOpenChange={setBulkAssignOpen}
+                count={selected.size}
+                onConfirm={(userId) => {
+                    const u = SALES_USERS.find((x) => x.id === userId);
+                    push({
+                        variant: 'success',
+                        title: 'Bulk reassigned',
+                        description: `${selected.size} inquiries reassigned to ${u?.name ?? 'user'}.`,
+                    });
+                    clearSelection();
+                    setBulkAssignOpen(false);
+                }}
+            />
+            <BulkStatusDialog
+                open={bulkStatusOpen}
+                onOpenChange={setBulkStatusOpen}
+                count={selected.size}
+                onConfirm={(status) => {
+                    push({
+                        variant: 'success',
+                        title: 'Status updated',
+                        description: `${selected.size} inquiries → ${statusLabel(status)}.`,
+                    });
+                    clearSelection();
+                    setBulkStatusOpen(false);
+                }}
+            />
+            <BulkLostDialog
+                open={bulkLostOpen}
+                onOpenChange={setBulkLostOpen}
+                count={selected.size}
+                onConfirm={(reason) => {
+                    push({
+                        variant: 'success',
+                        title: 'Marked as lost',
+                        description: `${selected.size} inquiries marked lost (${reason}).`,
+                    });
+                    clearSelection();
+                    setBulkLostOpen(false);
+                }}
             />
         </div>
     );
@@ -549,5 +607,171 @@ function RowActions({
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>
+    );
+}
+
+function BulkAssignDialog({
+    open,
+    onOpenChange,
+    count,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    count: number;
+    onConfirm: (userId: string) => void;
+}) {
+    const [userId, setUserId] = useState('');
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reassign inquiries</DialogTitle>
+                    <DialogDescription>
+                        Pick the new owner for {count} selected inquir
+                        {count === 1 ? 'y' : 'ies'}.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="Assignee" required>
+                        <Select
+                            value={userId}
+                            onChange={(e) => setUserId(e.target.value)}
+                        >
+                            <option value="">Select a user…</option>
+                            {SALES_USERS.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                    {u.name}
+                                </option>
+                            ))}
+                        </Select>
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={() => onConfirm(userId)}
+                        disabled={!userId}
+                    >
+                        Reassign
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkStatusDialog({
+    open,
+    onOpenChange,
+    count,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    count: number;
+    onConfirm: (status: InquiryStatus) => void;
+}) {
+    const [status, setStatus] = useState<InquiryStatus | ''>('');
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Change status</DialogTitle>
+                    <DialogDescription>
+                        Apply a new status to {count} inquir
+                        {count === 1 ? 'y' : 'ies'}. Use “Mark lost” for the lost
+                        status (it requires a reason).
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="New status" required>
+                        <Select
+                            value={status}
+                            onChange={(e) =>
+                                setStatus(e.target.value as InquiryStatus | '')
+                            }
+                        >
+                            <option value="">Select a status…</option>
+                            {INQUIRY_STATUSES.filter((s) => s !== 'lost').map(
+                                (s) => (
+                                    <option key={s} value={s}>
+                                        {statusLabel(s)}
+                                    </option>
+                                ),
+                            )}
+                        </Select>
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={() => status && onConfirm(status)}
+                        disabled={!status}
+                    >
+                        Apply
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkLostDialog({
+    open,
+    onOpenChange,
+    count,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    count: number;
+    onConfirm: (reason: string) => void;
+}) {
+    const [reason, setReason] = useState('');
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={(v) => {
+                if (!v) setReason('');
+                onOpenChange(v);
+            }}
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Mark as lost</DialogTitle>
+                    <DialogDescription>
+                        {count} inquir{count === 1 ? 'y' : 'ies'} will be moved to{' '}
+                        <strong>Lost</strong>. A reason is required.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="Lost reason" required>
+                        <Textarea
+                            rows={3}
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            placeholder="e.g. price too high, lost to competitor X…"
+                        />
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={() => onConfirm(reason.trim())}
+                        disabled={reason.trim().length < 3}
+                    >
+                        Mark lost
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
