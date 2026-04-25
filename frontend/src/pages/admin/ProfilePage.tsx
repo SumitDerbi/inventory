@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
     Copy,
+    Download,
     KeyRound,
     LogOut,
     Monitor,
@@ -596,6 +597,22 @@ function RecoveryCodesPanel({
             }),
         );
     }
+    function downloadTxt() {
+        const blob = new Blob([codes.join('\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recovery-codes.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        push({
+            variant: 'success',
+            title: 'Downloaded',
+            description: 'recovery-codes.txt saved.',
+        });
+    }
     return (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -606,6 +623,10 @@ function RecoveryCodesPanel({
                     <Button variant="ghost" size="sm" onClick={copyAll}>
                         <Copy className="size-4" aria-hidden="true" />
                         Copy
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={downloadTxt}>
+                        <Download className="size-4" aria-hidden="true" />
+                        Download
                     </Button>
                     <Button variant="ghost" size="sm" onClick={onRegenerate}>
                         <RefreshCw className="size-4" aria-hidden="true" />

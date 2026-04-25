@@ -19,7 +19,7 @@ export interface NavItem {
     label: string;
     to: string;
     icon: ComponentType<LucideProps>;
-    section: 'main' | 'admin';
+    section: 'main' | 'masters' | 'admin';
     /** Human-readable breadcrumb label (defaults to `label`). */
     breadcrumb?: string;
 }
@@ -29,7 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
     { label: 'Inquiries', to: '/inquiries', icon: MessageSquare, section: 'main' },
     { label: 'Quotations', to: '/quotations', icon: FileText, section: 'main' },
     { label: 'Orders', to: '/orders', icon: ShoppingCart, section: 'main' },
-    { label: 'Customers', to: '/customers', icon: Building2, section: 'main' },
+    { label: 'Customers', to: '/customers', icon: Building2, section: 'masters' },
     { label: 'Inventory', to: '/inventory', icon: Package, section: 'main' },
     { label: 'Dispatch', to: '/dispatch', icon: Truck, section: 'main' },
     { label: 'Jobs', to: '/jobs', icon: Hammer, section: 'main' },

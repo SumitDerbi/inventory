@@ -82,6 +82,7 @@ export default function InquiriesPage() {
     const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
     const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
     const [bulkLostOpen, setBulkLostOpen] = useState(false);
+    const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
     // Clear selection when filters change.
     useEffect(() => {
@@ -144,13 +145,28 @@ export default function InquiriesPage() {
         });
     }
 
-    function toggleOne(id: string) {
+    function toggleOne(id: string, shift = false) {
         setSelected((curr) => {
             const next = new Set(curr);
+            if (shift && lastSelectedId) {
+                const ids = filtered.map((r) => r.id);
+                const a = ids.indexOf(lastSelectedId);
+                const b = ids.indexOf(id);
+                if (a >= 0 && b >= 0) {
+                    const [lo, hi] = a < b ? [a, b] : [b, a];
+                    const targetState = !curr.has(id);
+                    for (let i = lo; i <= hi; i++) {
+                        if (targetState) next.add(ids[i]);
+                        else next.delete(ids[i]);
+                    }
+                    return next;
+                }
+            }
             if (next.has(id)) next.delete(id);
             else next.add(id);
             return next;
         });
+        setLastSelectedId(id);
     }
 
     function clearSelection() {
@@ -197,8 +213,11 @@ export default function InquiriesPage() {
                     aria-label={`Select ${row.inquiryNumber}`}
                     className="size-4 cursor-pointer rounded border-slate-300 text-primary focus:ring-primary/40"
                     checked={selected.has(row.id)}
-                    onChange={() => toggleOne(row.id)}
-                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => {}}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        toggleOne(row.id, e.shiftKey);
+                    }}
                 />
             ),
             className: 'w-10',

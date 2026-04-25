@@ -20,6 +20,7 @@ export function Sidebar({
 }: SidebarProps) {
     const { user, signOut } = useAuth();
     const main = NAV_ITEMS.filter((n) => n.section === 'main');
+    const masters = NAV_ITEMS.filter((n) => n.section === 'masters');
     const admin = NAV_ITEMS.filter((n) => n.section === 'admin');
 
     return (
@@ -59,6 +60,22 @@ export function Sidebar({
                         />
                     ))}
                 </ul>
+
+                {masters.length > 0 && (
+                    <>
+                        <SectionDivider label="Masters" collapsed={collapsed} />
+                        <ul className="space-y-0.5">
+                            {masters.map((item) => (
+                                <NavItemRow
+                                    key={item.to}
+                                    item={item}
+                                    collapsed={collapsed}
+                                    onNavigate={onNavigate}
+                                />
+                            ))}
+                        </ul>
+                    </>
+                )}
 
                 <SectionDivider label="Admin" collapsed={collapsed} />
 
