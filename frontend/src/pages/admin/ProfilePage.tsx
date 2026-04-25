@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
+    Copy,
     KeyRound,
     LogOut,
     Monitor,
+    RefreshCw,
     Save,
     ShieldCheck,
     Smartphone,
@@ -34,6 +36,14 @@ import {
     type MockUser,
 } from '@/mocks/users';
 import { activeSessions, type ActiveSession } from '@/mocks/sessions';
+import {
+    confirm2FA,
+    disable2FA,
+    enable2FA,
+    getRecoveryCodes,
+    regenerateRecoveryCodes,
+    twoFactor,
+} from '@/mocks/auth-2fa';
 
 interface PasswordRule {
     label: string;
@@ -268,6 +278,8 @@ export default function ProfilePage() {
                 </ul>
             </section>
 
+            <TwoFactorSection />
+
             <ChangePasswordDialog open={open} onOpenChange={setOpen} />
             <SignOutAllDialog
                 open={signOutAllOpen}
@@ -455,5 +467,444 @@ function ChangePasswordDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function TwoFactorSection() {
+    const { push } = useToast();
+    const [enabled, setEnabled] = useState(twoFactor.enabled);
+    const [enrolledAt, setEnrolledAt] = useState(twoFactor.enrolledAt);
+    const [setupOpen, setSetupOpen] = useState(false);
+    const [disableOpen, setDisableOpen] = useState(false);
+    const [codes, setCodes] = useState<string[]>(getRecoveryCodes());
+
+    function handleEnabled(at: string | null) {
+        setEnabled(true);
+        setEnrolledAt(at);
+        setCodes(getRecoveryCodes());
+    }
+
+    function handleDisable(password: string): { ok: boolean; error?: string } {
+        const res = disable2FA(password);
+        if (res.ok) {
+            setEnabled(false);
+            setEnrolledAt(null);
+            setCodes([]);
+            push({
+                variant: 'success',
+                title: 'Two-factor disabled',
+                description: 'Sign-ins no longer require a code.',
+            });
+            setDisableOpen(false);
+        }
+        return res;
+    }
+
+    function handleRegenerate() {
+        const next = regenerateRecoveryCodes();
+        setCodes(next);
+        push({
+            variant: 'success',
+            title: 'Recovery codes regenerated',
+            description: 'Old codes are no longer valid.',
+        });
+    }
+
+    return (
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                    <h2 className="text-base font-semibold text-slate-800">
+                        Two-factor authentication
+                    </h2>
+                    <p className="text-sm text-slate-500">
+                        Add an extra step at sign-in using an authenticator app.
+                    </p>
+                </div>
+                {enabled ? (
+                    <div className="flex items-center gap-2">
+                        <Badge tone="green">
+                            <ShieldCheck
+                                className="-ml-0.5 mr-1 size-3"
+                                aria-hidden="true"
+                            />
+                            Enabled
+                        </Badge>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDisableOpen(true)}
+                        >
+                            Disable
+                        </Button>
+                    </div>
+                ) : (
+                    <Button size="sm" onClick={() => setSetupOpen(true)}>
+                        <ShieldCheck className="size-4" aria-hidden="true" />
+                        Enable 2FA
+                    </Button>
+                )}
+            </header>
+            <div className="space-y-4 px-5 py-4 text-sm">
+                {enabled ? (
+                    <>
+                        <p className="text-slate-600">
+                            Authenticator app (TOTP) enrolled{' '}
+                            {enrolledAt ? formatRelative(enrolledAt) : '—'}.
+                        </p>
+                        <RecoveryCodesPanel
+                            codes={codes}
+                            onRegenerate={handleRegenerate}
+                        />
+                    </>
+                ) : (
+                    <p className="text-slate-500">
+                        2FA is currently <span className="font-medium">off</span>.
+                        Enable it to protect your account from password leaks.
+                    </p>
+                )}
+            </div>
+
+            <Setup2FADialog
+                open={setupOpen}
+                onOpenChange={setSetupOpen}
+                onEnabled={handleEnabled}
+            />
+            <Disable2FADialog
+                open={disableOpen}
+                onOpenChange={setDisableOpen}
+                onConfirm={handleDisable}
+            />
+        </section>
+    );
+}
+
+function RecoveryCodesPanel({
+    codes,
+    onRegenerate,
+}: {
+    codes: string[];
+    onRegenerate: () => void;
+}) {
+    const { push } = useToast();
+    function copyAll() {
+        navigator.clipboard?.writeText(codes.join('\n')).then(() =>
+            push({
+                variant: 'success',
+                title: 'Copied',
+                description: 'Recovery codes copied to clipboard.',
+            }),
+        );
+    }
+    return (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-slate-700">
+                    Recovery codes
+                </p>
+                <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={copyAll}>
+                        <Copy className="size-4" aria-hidden="true" />
+                        Copy
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={onRegenerate}>
+                        <RefreshCw className="size-4" aria-hidden="true" />
+                        Regenerate
+                    </Button>
+                </div>
+            </div>
+            <ul className="grid grid-cols-2 gap-1 font-mono text-xs text-slate-700 sm:grid-cols-4">
+                {codes.map((c) => (
+                    <li
+                        key={c}
+                        className="rounded bg-white px-2 py-1 ring-1 ring-slate-200"
+                    >
+                        {c}
+                    </li>
+                ))}
+            </ul>
+            <p className="mt-2 text-xs text-slate-500">
+                Each code can be used once if you lose access to your
+                authenticator.
+            </p>
+        </div>
+    );
+}
+
+function Setup2FADialog({
+    open,
+    onOpenChange,
+    onEnabled,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    onEnabled: (enrolledAt: string | null) => void;
+}) {
+    const { push } = useToast();
+    const [step, setStep] = useState<1 | 2 | 3>(1);
+    const [setup, setSetup] = useState<ReturnType<typeof enable2FA> | null>(
+        null,
+    );
+    const [code, setCode] = useState('');
+    const [error, setError] = useState<string | undefined>();
+
+    function reset() {
+        setStep(1);
+        setSetup(null);
+        setCode('');
+        setError(undefined);
+    }
+
+    function handleOpenChange(v: boolean) {
+        if (v && !setup) setSetup(enable2FA());
+        if (!v) reset();
+        onOpenChange(v);
+    }
+
+    function handleConfirm() {
+        const res = confirm2FA(code);
+        if (!res.ok) {
+            setError(res.error);
+            return;
+        }
+        setError(undefined);
+        setStep(3);
+        push({
+            variant: 'success',
+            title: 'Two-factor enabled',
+            description: 'You will be asked for a code at next sign-in.',
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Enable two-factor authentication</DialogTitle>
+                    <DialogDescription>Step {step} of 3</DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    {step === 1 && setup && (
+                        <div className="space-y-3">
+                            <p className="text-sm text-slate-600">
+                                Scan the QR code with your authenticator app
+                                (Google Authenticator, Authy, 1Password, etc.).
+                            </p>
+                            <div className="flex flex-col items-center gap-3 sm:flex-row">
+                                <QrPlaceholder value={setup.otpauth} />
+                                <div className="flex-1">
+                                    <p className="text-xs uppercase tracking-wide text-slate-400">
+                                        Or enter this secret manually
+                                    </p>
+                                    <p className="break-all rounded bg-slate-100 p-2 font-mono text-sm">
+                                        {setup.secret}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {step === 2 && (
+                        <div className="space-y-2">
+                            <p className="text-sm text-slate-600">
+                                Enter the 6-digit code from your authenticator
+                                app to confirm setup.
+                            </p>
+                            <FormField
+                                label="Verification code"
+                                required
+                                error={error}
+                            >
+                                <Input
+                                    value={code}
+                                    onChange={(e) => {
+                                        setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                        setError(undefined);
+                                    }}
+                                    inputMode="numeric"
+                                    autoComplete="one-time-code"
+                                    placeholder="123456"
+                                />
+                            </FormField>
+                            <p className="text-xs text-slate-400">
+                                Demo hint: use code <strong>123456</strong>.
+                            </p>
+                        </div>
+                    )}
+                    {step === 3 && setup && (
+                        <div className="space-y-3">
+                            <p className="text-sm text-emerald-700">
+                                Two-factor authentication is now active.
+                            </p>
+                            <p className="text-xs text-slate-500">
+                                Save these recovery codes somewhere safe. Each
+                                can be used once if you lose your device.
+                            </p>
+                            <ul className="grid grid-cols-2 gap-1 font-mono text-xs text-slate-700 sm:grid-cols-4">
+                                {setup.recoveryCodes.map((c) => (
+                                    <li
+                                        key={c}
+                                        className="rounded bg-slate-50 px-2 py-1 ring-1 ring-slate-200"
+                                    >
+                                        {c}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </DialogBody>
+                <DialogFooter>
+                    {step === 1 && (
+                        <>
+                            <Button
+                                variant="ghost"
+                                onClick={() => handleOpenChange(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button onClick={() => setStep(2)}>Next</Button>
+                        </>
+                    )}
+                    {step === 2 && (
+                        <>
+                            <Button
+                                variant="ghost"
+                                onClick={() => setStep(1)}
+                            >
+                                Back
+                            </Button>
+                            <Button
+                                onClick={handleConfirm}
+                                disabled={code.length !== 6}
+                            >
+                                Verify & enable
+                            </Button>
+                        </>
+                    )}
+                    {step === 3 && (
+                        <Button
+                            onClick={() => {
+                                onEnabled(twoFactor.enrolledAt);
+                                handleOpenChange(false);
+                            }}
+                        >
+                            Done
+                        </Button>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function Disable2FADialog({
+    open,
+    onOpenChange,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    onConfirm: (password: string) => { ok: boolean; error?: string };
+}) {
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState<string | undefined>();
+
+    function reset() {
+        setPassword('');
+        setError(undefined);
+    }
+
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={(v) => {
+                if (!v) reset();
+                onOpenChange(v);
+            }}
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Disable two-factor authentication</DialogTitle>
+                    <DialogDescription>
+                        Confirm with your password to turn off 2FA.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="Password" required error={error}>
+                        <PasswordInput
+                            value={password}
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                setError(undefined);
+                            }}
+                            autoComplete="current-password"
+                        />
+                    </FormField>
+                    <p className="mt-2 text-xs text-slate-400">
+                        Demo hint: use <strong>password123</strong>.
+                    </p>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={() => {
+                            const res = onConfirm(password);
+                            if (!res.ok) setError(res.error);
+                        }}
+                        disabled={password.length === 0}
+                    >
+                        Disable
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function QrPlaceholder({ value }: { value: string }) {
+    // Deterministic 13x13 pattern derived from value hash. Decorative only.
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+        hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    const size = 13;
+    const cells: boolean[] = [];
+    let h = hash;
+    for (let i = 0; i < size * size; i++) {
+        h = (h * 1103515245 + 12345) | 0;
+        cells.push(((h >>> 16) & 1) === 1);
+    }
+    // Force finder-pattern corners
+    function setBlock(r: number, c: number) {
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                cells[(r + i) * size + (c + j)] = true;
+            }
+        }
+    }
+    setBlock(0, 0);
+    setBlock(0, size - 3);
+    setBlock(size - 3, 0);
+    return (
+        <svg
+            viewBox={`0 0 ${size} ${size}`}
+            className="size-32 rounded bg-white p-1 ring-1 ring-slate-200"
+            aria-label="QR code (demo placeholder)"
+        >
+            {cells.map((on, i) =>
+                on ? (
+                    <rect
+                        key={i}
+                        x={i % size}
+                        y={Math.floor(i / size)}
+                        width={1}
+                        height={1}
+                        fill="#0f172a"
+                    />
+                ) : null,
+            )}
+        </svg>
     );
 }
