@@ -23,6 +23,7 @@
 | 13  | [Reports & analytics](./13-reports.md)                   | ✅                                          |
 | 14  | [Admin (users, roles, settings)](./14-admin.md)          | ✅                                          |
 | 15  | [Static deploy + client review](./15-static-deploy.md)   | 🟡 (code-side ✅, hosting/sign-off pending) |
+| 16  | [UI gap closure (search, bulk, sessions, 2FA, customer merge)](./16-ui-gap-closure.md) | ☐ |
 
 Tick boxes above as each step's **Verification** block passes. For each screen, follow [../SKILL.md §1](../SKILL.md).
 
