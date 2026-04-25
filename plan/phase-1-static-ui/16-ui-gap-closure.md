@@ -48,11 +48,11 @@ Implementation: scan existing module mocks (`inquiries`, `quotations`, `orders`,
 
 ### Verification
 
-- [ ] `Ctrl+K` and click both open the palette.
-- [ ] Typing 2+ chars renders grouped results within 16ms (mock).
-- [ ] `Esc` closes; `Enter` navigates and closes.
-- [ ] No layout shift in topbar at any breakpoint.
-- [ ] Commit: `feat(ui): global search palette (Ctrl+K)`.
+- [x] `Ctrl+K` and click both open the palette.
+- [x] Typing 2+ chars renders grouped results within 16ms (mock).
+- [x] `Esc` closes; `Enter` navigates and closes.
+- [x] No layout shift in topbar at any breakpoint.
+- [x] Commit: `feat(ui): global search palette (Ctrl+K)`.
 
 ---
 
@@ -89,12 +89,12 @@ No new mock files. Add helpers in existing `inquiriesService` / `ordersService` 
 
 ### Verification
 
-- [ ] Select-all toggles only current page rows; partial state when some rows already selected.
-- [ ] Bulk reassign updates owner column for all selected; toast shows count.
-- [ ] Bulk lost requires reason; cannot submit empty.
-- [ ] Filter change clears selection.
-- [ ] Keyboard: `Shift+click` range selects.
-- [ ] Commit: `feat(ui): bulk actions on inquiries + orders`.
+- [x] Select-all toggles only current page rows; partial state when some rows already selected.
+- [x] Bulk reassign updates owner column for all selected; toast shows count.
+- [x] Bulk lost requires reason; cannot submit empty.
+- [x] Filter change clears selection.
+- [x] Keyboard: `Shift+click` range selects.
+- [x] Commit: `feat(ui): bulk actions on inquiries + orders`.
 
 ---
 
@@ -127,10 +127,10 @@ In `ProfilePage.tsx`, add a "Signed-in devices" section under "Change password":
 
 ### Verification
 
-- [ ] Current session is listed with badge and disabled `Sign out`.
-- [ ] `Sign out` on another row removes it with toast.
-- [ ] `Sign out everywhere else` removes all non-current rows.
-- [ ] Commit: `feat(ui): active sessions on profile`.
+- [x] Current session is listed with badge and disabled `Sign out`.
+- [x] `Sign out` on another row removes it with toast.
+- [x] `Sign out everywhere else` removes all non-current rows.
+- [x] Commit: `feat(ui): active sessions on profile`.
 
 ---
 
@@ -175,10 +175,10 @@ In `ProfilePage.tsx`, add a "Two-factor authentication" section:
 
 ### Verification
 
-- [ ] Enable wizard reaches step 3 only when `123456` entered.
-- [ ] Recovery codes downloadable; regenerate replaces them.
-- [ ] Disable requires password; mock accepts `password123`.
-- [ ] Commit: `feat(ui): 2FA setup wizard on profile`.
+- [x] Enable wizard reaches step 3 only when `123456` entered.
+- [x] Recovery codes downloadable; regenerate replaces them.
+- [x] Disable requires password; mock accepts `password123`.
+- [x] Commit: `feat(ui): 2FA setup wizard on profile`.
 
 ---
 
@@ -237,12 +237,12 @@ After merge: toast, redirect to target detail; source becomes 404 / shows "Merge
 
 ### Verification
 
-- [ ] List + detail + create routes registered, sidebar entry under "Masters".
-- [ ] Dedupe on create flags matches by phone/email/GST and offers "Use existing" CTA.
-- [ ] Merge wizard 3-step flow; cannot proceed without resolving every conflict.
-- [ ] Confirm step requires checkbox.
-- [ ] Source customer post-merge shows merged-into banner.
-- [ ] Commit: `feat(ui): customers module + merge wizard`.
+- [x] List + detail + create routes registered, sidebar entry under "Masters".
+- [x] Dedupe on create flags matches by phone/email/GST and offers "Use existing" CTA.
+- [x] Merge wizard 3-step flow; cannot proceed without resolving every conflict.
+- [x] Confirm step requires checkbox.
+- [x] Source customer post-merge shows merged-into banner.
+- [x] Commit: `feat(ui): customers module + merge wizard`.
 
 ---
 
@@ -267,10 +267,10 @@ Light pass — Phase 1 has no Vitest yet. Manual checklist in each Verification 
 
 ## Step exit
 
-- [ ] All 5 sub-steps ticked.
-- [ ] `npm run build` clean; bundle size delta ≤ 25 KB gzipped (qrcode is the only new dep).
+- [x] All 5 sub-steps ticked.
+- [x] `npm run build` clean; bundle size delta ≤ 25 KB gzipped (qrcode is the only new dep).
 - [ ] Lighthouse a11y ≥ 90 retained.
-- [ ] Commit per sub-step (5 commits total).
+- [x] Commit per sub-step (5 commits total).
 
 ---
 
