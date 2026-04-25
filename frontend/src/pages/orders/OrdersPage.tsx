@@ -193,7 +193,7 @@ export default function OrdersPage() {
                     aria-label={`Select ${row.orderNumber}`}
                     className="size-4 cursor-pointer rounded border-slate-300 text-primary focus:ring-primary/40"
                     checked={selected.has(row.id)}
-                    onChange={() => {}}
+                    onChange={() => { }}
                     onClick={(e) => {
                         e.stopPropagation();
                         toggleOne(row.id, e.shiftKey);
