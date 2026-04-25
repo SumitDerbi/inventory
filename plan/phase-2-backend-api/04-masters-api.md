@@ -63,4 +63,4 @@ DELETE /api/v1/<resource>/:id        soft delete
 
 ---
 
-**Next:** [05-inquiries-api.md](./05-inquiries-api.md)
+**Next:** [04b-settings-api.md](./04b-settings-api.md)

@@ -42,8 +42,8 @@ Bootstrap Django project with MySQL (pymysql), DRF, JWT, drf-spectacular, pytest
    - MySQL in `DATABASES`.
    - `INSTALLED_APPS` registers all `apps.*`.
    - DRF defaults: JWT auth, `DjangoFilterBackend`, `SearchFilter`, `OrderingFilter`, pagination (20/100).
-   - `SIMPLE_JWT` — 15 min access, 7 day refresh, rotation + blacklist.
-   - CORS restricted to frontend origin in prod.
+   - `SIMPLE_JWT` — 15 min access, 7 day refresh, rotation + blacklist. Two realms: staff (`aud=staff`) and portal (`aud=portal`); claim verified in custom auth class.
+   - CORS via `django-cors-headers`. `CORS_ALLOWED_ORIGINS` read from env; in dev `http://localhost:5173`, in prod the deployed frontend origin only. `CORS_ALLOW_CREDENTIALS = True` for cookie-less JWT it stays False; document either way in `.env.example`.
    - `SPECTACULAR_SETTINGS` for OpenAPI.
    - Logging: JSON in prod, console in dev.
 7. **Base abstract models** — `apps/core/models.py`:

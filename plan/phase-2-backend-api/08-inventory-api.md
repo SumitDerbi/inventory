@@ -24,7 +24,8 @@
 ## Rules
 
 - **StockLedger is append-only.** Every inward/outward/adjustment/reserve/release writes a row.
-- **Available = on_hand − reserved**, computed in a managed DB view or cached summary table.
+- **Available = on_hand − reserved**, computed by the managed DB view `stock_summary_v` (created in step 02). Endpoints query the view by default; pass `?fast=true` to read from `stock_summary_cache` (hot dashboards).
+- Cache invalidation: `post_save` on `stock_ledger` + `reservations` enqueues a partial refresh for the affected (product, warehouse).
 - Adjustments require: reason code, remark ≥ 10 chars, authoriser role.
 - Reorder alerts: items where `available ≤ reorder_point`, with suggested PO qty.
 - Batch / serial tracked for applicable product categories; on dispatch, specific serials consumed.
