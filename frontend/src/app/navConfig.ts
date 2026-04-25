@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { LucideProps } from 'lucide-react';
 import {
+    Building2,
     FileText,
     FileSpreadsheet,
     Hammer,
@@ -28,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
     { label: 'Inquiries', to: '/inquiries', icon: MessageSquare, section: 'main' },
     { label: 'Quotations', to: '/quotations', icon: FileText, section: 'main' },
     { label: 'Orders', to: '/orders', icon: ShoppingCart, section: 'main' },
+    { label: 'Customers', to: '/customers', icon: Building2, section: 'main' },
     { label: 'Inventory', to: '/inventory', icon: Package, section: 'main' },
     { label: 'Dispatch', to: '/dispatch', icon: Truck, section: 'main' },
     { label: 'Jobs', to: '/jobs', icon: Hammer, section: 'main' },

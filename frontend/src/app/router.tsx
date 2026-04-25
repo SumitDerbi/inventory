@@ -22,6 +22,15 @@ const QuotationDetailPage = lazy(
 );
 const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'));
 const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'));
+const CustomersListPage = lazy(
+    () => import('@/pages/customers/CustomersListPage'),
+);
+const CustomerDetailPage = lazy(
+    () => import('@/pages/customers/CustomerDetailPage'),
+);
+const CustomerNewPage = lazy(
+    () => import('@/pages/customers/CustomerNewPage'),
+);
 const InventoryLayout = lazy(() => import('@/pages/inventory/InventoryLayout'));
 const ProductsListPage = lazy(
     () => import('@/pages/inventory/ProductsListPage'),
@@ -96,6 +105,9 @@ export const router = createBrowserRouter(
                 { path: 'quotations/:id', element: <QuotationDetailPage /> },
                 { path: 'orders', element: <OrdersPage /> },
                 { path: 'orders/:id', element: <OrderDetailPage /> },
+                { path: 'customers', element: <CustomersListPage /> },
+                { path: 'customers/new', element: <CustomerNewPage /> },
+                { path: 'customers/:id', element: <CustomerDetailPage /> },
                 {
                     path: 'inventory',
                     element: <InventoryLayout />,
