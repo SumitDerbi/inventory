@@ -73,7 +73,12 @@ const NotificationCenterPage = lazy(
 const KitchenSinkPage = lazy(() => import('@/pages/_dev/KitchenSink'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
-export const router = createBrowserRouter([
+const devRoutes = import.meta.env.DEV
+    ? [{ path: '/__kitchen-sink', element: <KitchenSinkPage /> }]
+    : [];
+
+export const router = createBrowserRouter(
+    [
     { path: '/login', element: <LoginPage /> },
     { path: '/forgot-password', element: <ForgotPasswordPage /> },
     {
@@ -135,6 +140,8 @@ export const router = createBrowserRouter([
             { path: 'notifications', element: <NotificationCenterPage /> },
         ],
     },
-    { path: '/__kitchen-sink', element: <KitchenSinkPage /> },
     { path: '*', element: <NotFoundPage /> },
-]);
+    ...devRoutes,
+],
+    { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' },
+);
