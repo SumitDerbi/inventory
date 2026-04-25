@@ -16,15 +16,15 @@ Lives under `/api/v1/portal/` with its own JWT realm (separate token claims `aud
 
 ## Auth
 
-| Method | Path                                | Purpose                            |
-| ------ | ----------------------------------- | ---------------------------------- |
-| POST   | `/api/v1/portal/auth/login/`        | email + password → portal JWT      |
-| POST   | `/api/v1/portal/auth/refresh/`      | refresh token rotation             |
-| POST   | `/api/v1/portal/auth/forgot/`       | reset link via email               |
-| POST   | `/api/v1/portal/auth/reset/`        | token + new password               |
-| POST   | `/api/v1/portal/auth/logout/`       | blacklist refresh                  |
-| GET    | `/api/v1/portal/me/`                | current portal user + organization |
-| PATCH  | `/api/v1/portal/me/password`        | change password                    |
+| Method | Path                           | Purpose                            |
+| ------ | ------------------------------ | ---------------------------------- |
+| POST   | `/api/v1/portal/auth/login/`   | email + password → portal JWT      |
+| POST   | `/api/v1/portal/auth/refresh/` | refresh token rotation             |
+| POST   | `/api/v1/portal/auth/forgot/`  | reset link via email               |
+| POST   | `/api/v1/portal/auth/reset/`   | token + new password               |
+| POST   | `/api/v1/portal/auth/logout/`  | blacklist refresh                  |
+| GET    | `/api/v1/portal/me/`           | current portal user + organization |
+| PATCH  | `/api/v1/portal/me/password`   | change password                    |
 
 Portal tokens carry `aud=portal`; staff middleware rejects them and vice versa. `portal_access_logs` row written on every authenticated request (sampled per minute per user).
 
@@ -32,27 +32,27 @@ Portal tokens carry `aud=portal`; staff middleware rejects them and vice versa. 
 
 ## Resource endpoints (read-mostly)
 
-| Method | Path                                                  | Purpose                                |
-| ------ | ----------------------------------------------------- | -------------------------------------- |
-| GET    | `/api/v1/portal/orders/`                              | list orders for org                    |
-| GET    | `/api/v1/portal/orders/:id`                           | detail (limited fields)                |
-| GET    | `/api/v1/portal/orders/:id/timeline`                  | milestones + dispatch + install events |
-| GET    | `/api/v1/portal/quotations/`                          | quotations sent to org (sent+ status)  |
-| GET    | `/api/v1/portal/quotations/:id`                       | detail + PDF link                      |
-| POST   | `/api/v1/portal/quotations/:id/approve`               | client approval (audited)              |
-| POST   | `/api/v1/portal/quotations/:id/reject`                | with reason                            |
-| GET    | `/api/v1/portal/dispatches/`                          | challans for org                       |
-| GET    | `/api/v1/portal/dispatches/:id/track`                 | status + transporter + ETA             |
-| GET    | `/api/v1/portal/jobs/`                                | installation jobs for org              |
-| GET    | `/api/v1/portal/jobs/:id`                             | engineer name (no contact), schedule   |
-| POST   | `/api/v1/portal/jobs/:id/feedback`                    | rating + comment                       |
-| GET    | `/api/v1/portal/documents/`                           | filterable: type, project, date        |
-| GET    | `/api/v1/portal/documents/:id/download`               | signed URL (15 min)                    |
-| GET    | `/api/v1/portal/search?q=...`                         | global across orders/quotes/docs       |
-| POST   | `/api/v1/portal/support-tickets/`                     | open ticket (text + attachment)        |
-| GET    | `/api/v1/portal/support-tickets/`                     | own tickets list                       |
-| GET    | `/api/v1/portal/notifications/`                       | portal-targeted notifications          |
-| PATCH  | `/api/v1/portal/notifications/:id/read`               |                                        |
+| Method | Path                                    | Purpose                                |
+| ------ | --------------------------------------- | -------------------------------------- |
+| GET    | `/api/v1/portal/orders/`                | list orders for org                    |
+| GET    | `/api/v1/portal/orders/:id`             | detail (limited fields)                |
+| GET    | `/api/v1/portal/orders/:id/timeline`    | milestones + dispatch + install events |
+| GET    | `/api/v1/portal/quotations/`            | quotations sent to org (sent+ status)  |
+| GET    | `/api/v1/portal/quotations/:id`         | detail + PDF link                      |
+| POST   | `/api/v1/portal/quotations/:id/approve` | client approval (audited)              |
+| POST   | `/api/v1/portal/quotations/:id/reject`  | with reason                            |
+| GET    | `/api/v1/portal/dispatches/`            | challans for org                       |
+| GET    | `/api/v1/portal/dispatches/:id/track`   | status + transporter + ETA             |
+| GET    | `/api/v1/portal/jobs/`                  | installation jobs for org              |
+| GET    | `/api/v1/portal/jobs/:id`               | engineer name (no contact), schedule   |
+| POST   | `/api/v1/portal/jobs/:id/feedback`      | rating + comment                       |
+| GET    | `/api/v1/portal/documents/`             | filterable: type, project, date        |
+| GET    | `/api/v1/portal/documents/:id/download` | signed URL (15 min)                    |
+| GET    | `/api/v1/portal/search?q=...`           | global across orders/quotes/docs       |
+| POST   | `/api/v1/portal/support-tickets/`       | open ticket (text + attachment)        |
+| GET    | `/api/v1/portal/support-tickets/`       | own tickets list                       |
+| GET    | `/api/v1/portal/notifications/`         | portal-targeted notifications          |
+| PATCH  | `/api/v1/portal/notifications/:id/read` |                                        |
 
 ---
 

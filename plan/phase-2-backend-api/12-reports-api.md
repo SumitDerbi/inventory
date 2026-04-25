@@ -8,30 +8,30 @@
 
 All `GET` only, under `/api/v1/reports/`. Path matches the **frontend slug** used by `frontend/src/mocks/reports.ts` so Phase 3 swap is a config-only change.
 
-| Slug (frontend)               | Path                               | Purpose                            |
-| ----------------------------- | ---------------------------------- | ---------------------------------- |
-| `inquiry-aging`               | `inquiries/aging`                  | bucketed: 0-3, 4-7, 8-14, 15+ days |
-| `inquiry-by-source`           | `inquiries/by-source`              | count + conversion %               |
-| `inquiry-lost-reasons`        | `inquiries/lost-reasons`           | grouped counts                     |
-| `inquiry-funnel`              | `inquiries/funnel`                 | stages → counts + %                |
-| `quotation-revision`          | `quotations/revision-frequency`    |                                    |
-| `quotation-approval-tat`      | `quotations/approval-tat`          | median / p90                       |
-| `quote-to-order`              | `quotations/quote-to-order`        | ratio                              |
-| `discount-leakage`            | `quotations/discount-leakage`      |                                    |
-| `orders-open`                 | `orders/open`                      |                                    |
-| `orders-readiness`            | `orders/readiness-blockers`        |                                    |
-| `orders-fulfilment-delay`     | `orders/fulfilment-delay`          |                                    |
-| `inventory-valuation`         | `inventory/valuation`              |                                    |
-| `inventory-fast-slow`         | `inventory/fast-slow`              | by velocity                        |
-| `inventory-shortage`          | `inventory/shortage-forecast`      |                                    |
-| `dispatch-on-time`            | `dispatch/on-time`                 | % + trend                          |
-| `dispatch-transporter`        | `dispatch/transporter-performance` |                                    |
-| `dispatch-pod-pending`        | `dispatch/pod-pending`             |                                    |
-| `jobs-tat`                    | `jobs/tat`                         | TAT per stage                      |
-| `engineer-utilisation`        | `jobs/engineer-utilisation`        |                                    |
-| `sales-monthly-revenue`       | `sales/monthly-revenue`            | + previous period comparison       |
-| `sales-by-customer`           | `sales/by-customer`                |                                    |
-| `sales-by-territory`          | `sales/by-territory`               |                                    |
+| Slug (frontend)           | Path                               | Purpose                            |
+| ------------------------- | ---------------------------------- | ---------------------------------- |
+| `inquiry-aging`           | `inquiries/aging`                  | bucketed: 0-3, 4-7, 8-14, 15+ days |
+| `inquiry-by-source`       | `inquiries/by-source`              | count + conversion %               |
+| `inquiry-lost-reasons`    | `inquiries/lost-reasons`           | grouped counts                     |
+| `inquiry-funnel`          | `inquiries/funnel`                 | stages → counts + %                |
+| `quotation-revision`      | `quotations/revision-frequency`    |                                    |
+| `quotation-approval-tat`  | `quotations/approval-tat`          | median / p90                       |
+| `quote-to-order`          | `quotations/quote-to-order`        | ratio                              |
+| `discount-leakage`        | `quotations/discount-leakage`      |                                    |
+| `orders-open`             | `orders/open`                      |                                    |
+| `orders-readiness`        | `orders/readiness-blockers`        |                                    |
+| `orders-fulfilment-delay` | `orders/fulfilment-delay`          |                                    |
+| `inventory-valuation`     | `inventory/valuation`              |                                    |
+| `inventory-fast-slow`     | `inventory/fast-slow`              | by velocity                        |
+| `inventory-shortage`      | `inventory/shortage-forecast`      |                                    |
+| `dispatch-on-time`        | `dispatch/on-time`                 | % + trend                          |
+| `dispatch-transporter`    | `dispatch/transporter-performance` |                                    |
+| `dispatch-pod-pending`    | `dispatch/pod-pending`             |                                    |
+| `jobs-tat`                | `jobs/tat`                         | TAT per stage                      |
+| `engineer-utilisation`    | `jobs/engineer-utilisation`        |                                    |
+| `sales-monthly-revenue`   | `sales/monthly-revenue`            | + previous period comparison       |
+| `sales-by-customer`       | `sales/by-customer`                |                                    |
+| `sales-by-territory`      | `sales/by-territory`               |                                    |
 
 The slug ↔ path map lives in `apps/reports/registry.py` and is the single source of truth used by the API, Postman tests, and the frontend resolver.
 
@@ -39,13 +39,13 @@ The slug ↔ path map lives in `apps/reports/registry.py` and is the single sour
 
 ## Saved reports — endpoints
 
-| Method | Path                                       | Purpose                                |
-| ------ | ------------------------------------------ | -------------------------------------- |
-| GET    | `/api/v1/reports/saved/`                   | list user's saved + shared reports     |
-| POST   | `/api/v1/reports/saved/`                   | save: `{ slug, name, filters, share }` |
-| GET    | `/api/v1/reports/saved/:id`                | run + return rows (uses stored filters)|
-| PATCH  | `/api/v1/reports/saved/:id`                | rename / update filters / share        |
-| DELETE | `/api/v1/reports/saved/:id`                | owner only                             |
+| Method | Path                        | Purpose                                 |
+| ------ | --------------------------- | --------------------------------------- |
+| GET    | `/api/v1/reports/saved/`    | list user's saved + shared reports      |
+| POST   | `/api/v1/reports/saved/`    | save: `{ slug, name, filters, share }`  |
+| GET    | `/api/v1/reports/saved/:id` | run + return rows (uses stored filters) |
+| PATCH  | `/api/v1/reports/saved/:id` | rename / update filters / share         |
+| DELETE | `/api/v1/reports/saved/:id` | owner only                              |
 
 Sharing: `share` enum `private | team | role:<role_slug>`; row-level read scope enforced.
 
@@ -53,14 +53,14 @@ Sharing: `share` enum `private | team | role:<role_slug>`; row-level read scope 
 
 ## Scheduled reports — endpoints
 
-| Method | Path                                       | Purpose                                          |
-| ------ | ------------------------------------------ | ------------------------------------------------ |
-| GET    | `/api/v1/reports/scheduled/`               | list                                             |
-| POST   | `/api/v1/reports/scheduled/`               | create: saved_report_id, cron, recipients, format|
-| GET    | `/api/v1/reports/scheduled/:id`            | detail + last 5 runs                             |
-| PATCH  | `/api/v1/reports/scheduled/:id`            | toggle active, edit cron / recipients            |
-| DELETE | `/api/v1/reports/scheduled/:id`            |                                                  |
-| POST   | `/api/v1/reports/scheduled/:id/run-now`    | force-run; appends to history                    |
+| Method | Path                                    | Purpose                                           |
+| ------ | --------------------------------------- | ------------------------------------------------- |
+| GET    | `/api/v1/reports/scheduled/`            | list                                              |
+| POST   | `/api/v1/reports/scheduled/`            | create: saved_report_id, cron, recipients, format |
+| GET    | `/api/v1/reports/scheduled/:id`         | detail + last 5 runs                              |
+| PATCH  | `/api/v1/reports/scheduled/:id`         | toggle active, edit cron / recipients             |
+| DELETE | `/api/v1/reports/scheduled/:id`         |                                                   |
+| POST   | `/api/v1/reports/scheduled/:id/run-now` | force-run; appends to history                     |
 
 Cron validated via `croniter`; `next_run_at` recomputed on save. Background runner in step 13 (`scheduled_reports_dispatch`).
 

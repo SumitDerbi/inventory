@@ -32,6 +32,8 @@ Ship a single Postman collection + environment files that a new developer can im
    - On create: write ID to env for subsequent requests.
 5. **Data-driven** runs via CSV where useful (e.g. negative validation tests).
 6. **Smoke suite** folder at top — the minimum "is the API healthy" chain.
+7. **Export-format probes** — for every list endpoint that the frontend exposes Export on (inquiries, quotations, orders, documents, reports), include three calls (`?format=csv`, `?format=xlsx`, `?format=pdf`) asserting `Content-Type` + non-zero body size.
+8. **Realm separation probes** — folder asserting staff token → portal endpoint = 401 and vice versa.
 
 ---
 

@@ -16,20 +16,20 @@ All endpoints are gated by `module=settings, action=manage` permission (admin ro
 
 ## Resources & endpoints
 
-| Method | Path                                                   | Purpose                              |
-| ------ | ------------------------------------------------------ | ------------------------------------ |
-| GET    | `/api/v1/settings/company/`                            | singleton company profile            |
-| PUT    | `/api/v1/settings/company/`                            | update profile + logo (multipart)    |
-| CRUD   | `/api/v1/settings/numbering-series/`                   | one row per doc type                 |
-| POST   | `/api/v1/settings/numbering-series/:id/preview`        | return next 3 numbers given config   |
-| CRUD   | `/api/v1/settings/tax-rules/`                          | proxy to `tax_rules` w/ admin gate   |
-| CRUD   | `/api/v1/settings/payment-terms/`                      | named terms (Net 30, 50/50, etc.)    |
-| CRUD   | `/api/v1/settings/integrations/`                       | SMTP, WhatsApp, SMS, S3 credentials  |
-| POST   | `/api/v1/settings/integrations/:id/test`               | send test event; returns success/log |
-| CRUD   | `/api/v1/settings/notification-channels/`              | per-kind opt-in defaults             |
-| CRUD   | `/api/v1/settings/email-templates/`                    | template CRUD                        |
-| POST   | `/api/v1/settings/email-templates/:id/preview`         | render with sample context           |
-| POST   | `/api/v1/settings/email-templates/:id/send-test`       | send to current user's email         |
+| Method | Path                                             | Purpose                              |
+| ------ | ------------------------------------------------ | ------------------------------------ |
+| GET    | `/api/v1/settings/company/`                      | singleton company profile            |
+| PUT    | `/api/v1/settings/company/`                      | update profile + logo (multipart)    |
+| CRUD   | `/api/v1/settings/numbering-series/`             | one row per doc type                 |
+| POST   | `/api/v1/settings/numbering-series/:id/preview`  | return next 3 numbers given config   |
+| CRUD   | `/api/v1/settings/tax-rules/`                    | proxy to `tax_rules` w/ admin gate   |
+| CRUD   | `/api/v1/settings/payment-terms/`                | named terms (Net 30, 50/50, etc.)    |
+| CRUD   | `/api/v1/settings/integrations/`                 | SMTP, WhatsApp, SMS, S3 credentials  |
+| POST   | `/api/v1/settings/integrations/:id/test`         | send test event; returns success/log |
+| CRUD   | `/api/v1/settings/notification-channels/`        | per-kind opt-in defaults             |
+| CRUD   | `/api/v1/settings/email-templates/`              | template CRUD                        |
+| POST   | `/api/v1/settings/email-templates/:id/preview`   | render with sample context           |
+| POST   | `/api/v1/settings/email-templates/:id/send-test` | send to current user's email         |
 
 ---
 

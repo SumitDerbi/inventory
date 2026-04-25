@@ -17,6 +17,7 @@
 | GET    | `/api/v1/documents/:id/versions` |                               |
 | POST   | `/api/v1/documents/:id/versions` | upload new version            |
 | GET    | `/api/v1/documents/:id/download` | signed URL (15 min)           |
+| POST   | `/api/v1/documents/bulk-download`| zip of selected docs (ids[])  |
 | POST   | `/api/v1/documents/:id/share`    | generate share link           |
 | CRUD   | `/api/v1/documents/:id/access`   | per-role / per-user access    |
 
@@ -24,23 +25,29 @@
 
 `type`, `category`, `entity_type`, `entity_id`, `sensitivity`, `uploaded_by`, `date_from/to`, `q` (filename + tags).
 
+### Bulk download
+
+- POST body: `{ "ids": ["...", "..."] }` (max 50).
+- Response: streamed `application/zip`; filename `documents-<timestamp>.zip`.
+- Each doc filtered through the same sensitivity/access pipeline; silently skipped if user lacks rights (response header `X-Skipped-Count` reports how many).
+
 ---
 
 ## Invoices — endpoints
 
-| Method | Path                                  | Purpose                                |
-| ------ | ------------------------------------- | -------------------------------------- |
-| GET    | `/api/v1/invoices/`                   | list + filters                         |
-| POST   | `/api/v1/invoices/`                   | create header (links to order)         |
-| GET    | `/api/v1/invoices/:id`                | detail + items + computed totals       |
-| PATCH  | `/api/v1/invoices/:id`                | header edits while `draft`             |
-| DELETE | `/api/v1/invoices/:id`                | only when `draft`                      |
-| CRUD   | `/api/v1/invoices/:id/items/`         | line items (qty, rate, tax, discount)  |
-| POST   | `/api/v1/invoices/:id/finalise`       | locks invoice, assigns number          |
-| POST   | `/api/v1/invoices/:id/cancel`         | with reason + audit                    |
-| POST   | `/api/v1/invoices/:id/upload-scan`    | attach signed PDF (multipart)          |
-| GET    | `/api/v1/invoices/:id/pdf`            | server-generated PDF (weasyprint)      |
-| POST   | `/api/v1/invoices/:id/email`          | send PDF to customer billing email     |
+| Method | Path                               | Purpose                               |
+| ------ | ---------------------------------- | ------------------------------------- |
+| GET    | `/api/v1/invoices/`                | list + filters                        |
+| POST   | `/api/v1/invoices/`                | create header (links to order)        |
+| GET    | `/api/v1/invoices/:id`             | detail + items + computed totals      |
+| PATCH  | `/api/v1/invoices/:id`             | header edits while `draft`            |
+| DELETE | `/api/v1/invoices/:id`             | only when `draft`                     |
+| CRUD   | `/api/v1/invoices/:id/items/`      | line items (qty, rate, tax, discount) |
+| POST   | `/api/v1/invoices/:id/finalise`    | locks invoice, assigns number         |
+| POST   | `/api/v1/invoices/:id/cancel`      | with reason + audit                   |
+| POST   | `/api/v1/invoices/:id/upload-scan` | attach signed PDF (multipart)         |
+| GET    | `/api/v1/invoices/:id/pdf`         | server-generated PDF (weasyprint)     |
+| POST   | `/api/v1/invoices/:id/email`       | send PDF to customer billing email    |
 
 ### Rules
 
@@ -53,13 +60,13 @@
 
 ## Serial Number Registry — endpoints
 
-| Method | Path                                       | Purpose                                  |
-| ------ | ------------------------------------------ | ---------------------------------------- |
-| GET    | `/api/v1/serial-numbers/`                  | list + filter by product, status, owner  |
-| POST   | `/api/v1/serial-numbers/`                  | bulk create on inward                    |
-| GET    | `/api/v1/serial-numbers/:serial`           | detail (current state)                   |
-| PATCH  | `/api/v1/serial-numbers/:serial`           | warranty dates / notes                   |
-| GET    | `/api/v1/serial-numbers/:serial/trace`     | full chain → inward, order, dispatch, install, certs, current owner |
+| Method | Path                                   | Purpose                                                             |
+| ------ | -------------------------------------- | ------------------------------------------------------------------- |
+| GET    | `/api/v1/serial-numbers/`              | list + filter by product, status, owner                             |
+| POST   | `/api/v1/serial-numbers/`              | bulk create on inward                                               |
+| GET    | `/api/v1/serial-numbers/:serial`       | detail (current state)                                              |
+| PATCH  | `/api/v1/serial-numbers/:serial`       | warranty dates / notes                                              |
+| GET    | `/api/v1/serial-numbers/:serial/trace` | full chain → inward, order, dispatch, install, certs, current owner |
 
 ### Trace response shape
 
@@ -68,14 +75,14 @@
   "serial": "PN-2024-00342",
   "product": { "id": 12, "sku": "...", "name": "..." },
   "events": [
-    { "kind": "inward",   "at": "...", "ref": "GRN/...",        "warehouse": "..." },
-    { "kind": "reserve",  "at": "...", "ref": "SO-...",         "qty": 1 },
-    { "kind": "dispatch", "at": "...", "ref": "CH-...",         "transporter": "..." },
-    { "kind": "install",  "at": "...", "ref": "JOB-...",        "engineer": "..." },
-    { "kind": "certify",  "at": "...", "ref": "CERT-..."                          }
+    { "kind": "inward", "at": "...", "ref": "GRN/...", "warehouse": "..." },
+    { "kind": "reserve", "at": "...", "ref": "SO-...", "qty": 1 },
+    { "kind": "dispatch", "at": "...", "ref": "CH-...", "transporter": "..." },
+    { "kind": "install", "at": "...", "ref": "JOB-...", "engineer": "..." },
+    { "kind": "certify", "at": "...", "ref": "CERT-..." },
   ],
   "current_owner": { "type": "customer", "id": 87, "name": "..." },
-  "warranty": { "start": "...", "end": "...", "status": "active" }
+  "warranty": { "start": "...", "end": "...", "status": "active" },
 }
 ```
 
@@ -83,12 +90,12 @@
 
 ## Certificates — endpoints
 
-| Method | Path                                           | Purpose                          |
-| ------ | ---------------------------------------------- | -------------------------------- |
-| CRUD   | `/api/v1/certificates/templates/`              | admin manages templates          |
-| POST   | `/api/v1/certificates/`                        | generate from template + context |
-| GET    | `/api/v1/certificates/:id`                     | metadata                         |
-| GET    | `/api/v1/certificates/:id/pdf`                 | rendered PDF (signed URL)        |
+| Method | Path                              | Purpose                          |
+| ------ | --------------------------------- | -------------------------------- |
+| CRUD   | `/api/v1/certificates/templates/` | admin manages templates          |
+| POST   | `/api/v1/certificates/`           | generate from template + context |
+| GET    | `/api/v1/certificates/:id`        | metadata                         |
+| GET    | `/api/v1/certificates/:id/pdf`    | rendered PDF (signed URL)        |
 
 Generation pulls signature image from settings; serial(s) auto-linked.
 

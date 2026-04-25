@@ -49,13 +49,20 @@ Bootstrap Django project with MySQL (pymysql), DRF, JWT, drf-spectacular, pytest
 7. **Base abstract models** — `apps/core/models.py`:
    - `TimeStampedModel`, `UserStampedModel`, `SoftDeleteModel`, combined `AuditModel`.
    - `SoftDeleteManager` excludes `is_deleted=True`.
-8. **Base viewset** — `apps/core/views.py` with soft-delete override + standard filter/search/order mixins.
+8. **Base viewset** — `apps/core/views.py` with soft-delete override + standard filter/search/order mixins. Includes `ListExportMixin` that handles `?format=csv|xlsx|pdf` on every list endpoint: streams the filtered queryset through `tablib` (csv/xlsx) or `weasyprint` (pdf) using a per-resource `export_columns` declaration. JSON remains the default when `format` is absent.
 9. **Base permissions** — `apps/core/permissions.py`: `IsAuthenticatedActive`, `HasRole(*roles)`, `HasModulePermission`.
-10. **URL layout** — `/api/v1/<module>/` namespaces; `/api/auth/` for auth; `/api/schema/`, `/api/docs/`.
-11. **Pytest config** — `pytest.ini` with `DJANGO_SETTINGS_MODULE=config.settings.dev`, `pytest-cov` threshold 85, `pytest-factoryboy`.
-12. **Pre-commit** — black, isort, flake8, django-upgrade.
-13. **Dockerfile (optional)** and `docker-compose.yml` for MySQL local.
-14. **deploy.sh** draft per [stack.md](../../docs/stack.md) conventions (cPanel config paths).
+10. **API contract conventions** — documented once in `apps/core/README.md` and enforced in tests:
+    - JSON keys: **snake_case** end-to-end. Frontend converts to camelCase at the client boundary; backend never emits camelCase.
+    - Datetimes: **ISO 8601 UTC** with `Z` suffix. Dates: `YYYY-MM-DD`. Money: string decimal with 2 places, never float.
+    - Nullable FKs: always present in response with `null`; never omitted.
+    - Nested includes: opt-in via `?include=items,activity,attachments` (comma list); never auto-expanded.
+    - Pagination envelope: `{ count, next, previous, results }` (DRF default `PageNumberPagination`).
+    - Errors: `{ detail }` for top-level, `{ field: ["..."] }` for validation; HTTP codes `400` validation, `401` auth, `403` permission, `404` not found, `409` conflict, `422` business rule.
+11. **URL layout** — `/api/v1/<module>/` namespaces; `/api/auth/` for staff auth; `/api/v1/portal/` for portal auth; `/api/schema/`, `/api/docs/`.
+12. **Pytest config** — `pytest.ini` with `DJANGO_SETTINGS_MODULE=config.settings.dev`, `pytest-cov` threshold 85, `pytest-factoryboy`.
+13. **Pre-commit** — black, isort, flake8, django-upgrade.
+14. **Dockerfile (optional)** and `docker-compose.yml` for MySQL local.
+15. **deploy.sh** draft per [stack.md](../../docs/stack.md) conventions (cPanel config paths).
 
 ---
 
@@ -66,6 +73,8 @@ Bootstrap Django project with MySQL (pymysql), DRF, JWT, drf-spectacular, pytest
 - [ ] `python manage.py runserver` serves `/api/docs/` with Swagger.
 - [ ] `pytest` runs with 0 tests, 0 errors.
 - [ ] Base abstract models importable; a throwaway model using them migrates cleanly then is reverted.
+- [ ] `ListExportMixin` smoke test on a sample resource returns valid csv/xlsx/pdf for `?format=...`.
+- [ ] API contract conventions documented in `apps/core/README.md`.
 - [ ] Commit: `chore(api): bootstrap django + drf + jwt`.
 
 ---

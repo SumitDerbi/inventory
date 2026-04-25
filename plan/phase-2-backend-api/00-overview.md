@@ -6,25 +6,25 @@
 
 ## Ordered steps
 
-| #   | Step                                                                                                    | Status |
-| --- | ------------------------------------------------------------------------------------------------------- | ------ |
-| 01  | [Django project setup & conventions](./01-django-setup.md)                                              | ☐      |
-| 02  | [Models + migrations (all apps)](./02-models-migrations.md)                                             | ☐      |
-| 03  | [Auth API (JWT, users, roles, permissions)](./03-auth-api.md)                                           | ☐      |
-| 04  | [Shared masters (customers, contacts, addresses, tax, attachments, notifications)](./04-masters-api.md) | ☐      |
+| #   | Step                                                                                                     | Status |
+| --- | -------------------------------------------------------------------------------------------------------- | ------ |
+| 01  | [Django project setup & conventions](./01-django-setup.md)                                               | ☐      |
+| 02  | [Models + migrations (all apps)](./02-models-migrations.md)                                              | ☐      |
+| 03  | [Auth API (JWT, users, roles, permissions)](./03-auth-api.md)                                            | ☐      |
+| 04  | [Shared masters (customers, contacts, addresses, tax, attachments, notifications)](./04-masters-api.md)  | ☐      |
 | 04b | [Settings & admin config API (company, numbering, email templates, integrations)](./04b-settings-api.md) | ☐      |
-| 05  | [Inquiries API](./05-inquiries-api.md)                                                                  | ☐      |
-| 06  | [Quotations API](./06-quotations-api.md)                                                                | ☐      |
-| 07  | [Sales Orders API](./07-orders-api.md)                                                                  | ☐      |
-| 08  | [Inventory API](./08-inventory-api.md)                                                                  | ☐      |
-| 09  | [Dispatch API](./09-dispatch-api.md)                                                                    | ☐      |
-| 10  | [Jobs & Engineer API](./10-jobs-api.md)                                                                 | ☐      |
-| 11  | [Documents API](./11-documents-api.md)                                                                  | ☐      |
-| 11b | [Client Portal API (scoped, separate JWT realm)](./11b-client-portal-api.md)                            | ☐      |
-| 12  | [Reports API (read-only aggregations)](./12-reports-api.md)                                             | ☐      |
-| 13  | [Notifications API + background jobs](./13-notifications-api.md)                                        | ☐      |
-| 14  | [Postman collection + Newman CI](./14-postman-tests.md)                                                 | ☐      |
-| 15  | [Pytest suite + coverage gates](./15-pytest-suite.md)                                                   | ☐      |
+| 05  | [Inquiries API](./05-inquiries-api.md)                                                                   | ☐      |
+| 06  | [Quotations API](./06-quotations-api.md)                                                                 | ☐      |
+| 07  | [Sales Orders API](./07-orders-api.md)                                                                   | ☐      |
+| 08  | [Inventory API](./08-inventory-api.md)                                                                   | ☐      |
+| 09  | [Dispatch API](./09-dispatch-api.md)                                                                     | ☐      |
+| 10  | [Jobs & Engineer API](./10-jobs-api.md)                                                                  | ☐      |
+| 11  | [Documents API](./11-documents-api.md)                                                                   | ☐      |
+| 11b | [Client Portal API (scoped, separate JWT realm)](./11b-client-portal-api.md)                             | ☐      |
+| 12  | [Reports API (read-only aggregations)](./12-reports-api.md)                                              | ☐      |
+| 13  | [Notifications API + background jobs](./13-notifications-api.md)                                         | ☐      |
+| 14  | [Postman collection + Newman CI](./14-postman-tests.md)                                                  | ☐      |
+| 15  | [Pytest suite + coverage gates](./15-pytest-suite.md)                                                    | ☐      |
 
 Follow [../SKILL.md §2](../SKILL.md) for every resource.
 
