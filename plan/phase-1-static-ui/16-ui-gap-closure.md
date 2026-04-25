@@ -26,11 +26,11 @@ Add `frontend/src/mocks/search.ts`:
 ```ts
 export interface SearchResult {
   id: string;
-  type: 'inquiry' | 'quotation' | 'order' | 'job' | 'document' | 'customer';
-  title: string;          // e.g. "INQ-2026-014 — Acme Pumps"
-  subtitle: string;       // small line under title
-  href: string;           // route link
-  matchedField: string;   // "number", "customer", "tag" etc.
+  type: "inquiry" | "quotation" | "order" | "job" | "document" | "customer";
+  title: string; // e.g. "INQ-2026-014 — Acme Pumps"
+  subtitle: string; // small line under title
+  href: string; // route link
+  matchedField: string; // "number", "customer", "tag" etc.
 }
 
 export function searchAll(q: string): SearchResult[];
@@ -143,12 +143,16 @@ Add `frontend/src/mocks/auth-2fa.ts`:
 ```ts
 export interface TwoFactorState {
   enabled: boolean;
-  method: 'totp' | null;
+  method: "totp" | null;
   enrolledAt: string | null;
 }
-export const twoFactor: TwoFactorState = { enabled: false, method: null, enrolledAt: null };
+export const twoFactor: TwoFactorState = {
+  enabled: false,
+  method: null,
+  enrolledAt: null,
+};
 export function enable2FA(): { secret: string; otpauth: string; qrSvg: string };
-export function confirm2FA(code: string): boolean;  // mock: accepts "123456"
+export function confirm2FA(code: string): boolean; // mock: accepts "123456"
 export function disable2FA(password: string): boolean;
 ```
 
@@ -219,10 +223,12 @@ export function mergeCustomers(sourceId: string, targetId: string): Customer;
 ### Merge flow
 
 Trigger:
+
 1. From customer list — select 2 rows → "Merge…" action button.
 2. From detail page — "Find duplicates" button → opens dialog showing potential matches (`findDuplicates()`); pick a match → opens merge wizard.
 
 Merge wizard (modal, 3 steps):
+
 1. **Choose target** — left pane (source, will be merged away), right pane (target, kept). Toggle to swap.
 2. **Resolve conflicts** — for each field that differs (name, gst, pan, addresses, contacts), radio choose source / target / both (multi-value fields).
 3. **Confirm** — diff summary + warning "All inquiries, quotations, orders, jobs, documents linked to source will move to target. Source will be archived." → checkbox "I understand", `Merge` button.

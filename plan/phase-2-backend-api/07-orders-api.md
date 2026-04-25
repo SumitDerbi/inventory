@@ -22,6 +22,10 @@
 | CRUD   | `/api/v1/orders/:id/delivery-schedules`     |                             |
 | CRUD   | `/api/v1/orders/:id/material-checklist`     |                             |
 | CRUD   | `/api/v1/orders/:id/installation-readiness` |                             |
+| POST   | `/api/v1/orders/:id/assign`                 | `{ user_id }`               |
+| POST   | `/api/v1/orders/bulk-assign`                | `{ order_ids[], user_id }`  |
+| POST   | `/api/v1/orders/bulk-ready`                 | `{ order_ids[] }` — stage advances per row if gates pass |
+| POST   | `/api/v1/orders/bulk-export`                | `{ order_ids[], format }` → file |
 
 ---
 
@@ -35,6 +39,12 @@
 - Partial fulfilment tracked at item level (`qty_dispatched`, `qty_pending`, `qty_backorder`).
 - Cancellation flow requires reason + admin approval (auto-approve if not yet dispatched).
 - Amendment flow writes approval requests; freezes order until resolved.
+
+### Bulk operations
+
+- `bulk-assign` / `bulk-ready` / `bulk-export` accept up to 200 ids; same 207-on-partial-failure contract as inquiries (step 05).
+- `bulk-ready` runs the full Ready stage-gate per row; rows missing prerequisites land in `failed` with the gate name (`mrp_red`, `docs_pending`, `commercial_block`).
+- All bulk endpoints write per-row `order_activity` events.
 
 ---
 

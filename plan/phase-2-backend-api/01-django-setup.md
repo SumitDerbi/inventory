@@ -49,7 +49,7 @@ Bootstrap Django project with MySQL (pymysql), DRF, JWT, drf-spectacular, pytest
 7. **Base abstract models** — `apps/core/models.py`:
    - `TimeStampedModel`, `UserStampedModel`, `SoftDeleteModel`, combined `AuditModel`.
    - `SoftDeleteManager` excludes `is_deleted=True`.
-8. **Base viewset** — `apps/core/views.py` with soft-delete override + standard filter/search/order mixins. Includes `ListExportMixin` that handles `?format=csv|xlsx|pdf` on every list endpoint: streams the filtered queryset through `tablib` (csv/xlsx) or `weasyprint` (pdf) using a per-resource `export_columns` declaration. JSON remains the default when `format` is absent.
+8. **Base viewset** — `apps/core/views.py` with soft-delete override + standard filter/search/order mixins. Includes `ListExportMixin` that handles `?format=csv|xlsx|pdf` on every list endpoint: streams the filtered queryset through `tablib` (csv/xlsx) or `weasyprint` (pdf) using a per-resource `export_columns` declaration. JSON remains the default when `format` is absent. The mixin also accepts `?ids=id1,id2,...` (or `ids[]` body on bulk-export POSTs) to scope an export to an explicit selection — used by the inquiries / orders / documents bulk-action toolbars.
 9. **Base permissions** — `apps/core/permissions.py`: `IsAuthenticatedActive`, `HasRole(*roles)`, `HasModulePermission`.
 10. **API contract conventions** — documented once in `apps/core/README.md` and enforced in tests:
     - JSON keys: **snake_case** end-to-end. Frontend converts to camelCase at the client boundary; backend never emits camelCase.

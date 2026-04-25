@@ -23,8 +23,12 @@
 | GET    | `/api/v1/inquiries/:id/activity`                  | timeline                        |
 | GET    | `/api/v1/inquiries/:id/items`                     |                                 |
 | POST   | `/api/v1/inquiries/:id/items`                     | add requirement line            |
+| GET    | `/api/v1/inquiries/items/:id`                     |                                 |
 | PATCH  | `/api/v1/inquiries/items/:id`                     |                                 |
 | DELETE | `/api/v1/inquiries/items/:id`                     |                                 |
+| POST   | `/api/v1/inquiries/bulk-assign`                   | `{ inquiry_ids[], user_id }`    |
+| POST   | `/api/v1/inquiries/bulk-status`                   | `{ inquiry_ids[], status, lost_reason? }` |
+| POST   | `/api/v1/inquiries/bulk-export`                   | `{ inquiry_ids[], format }` → file |
 | GET    | `/api/v1/inquiries/stats`                         | counts by status / source       |
 
 ---
@@ -38,6 +42,14 @@
 - `lost` status requires `lost_reason`.
 - `convert-to-quotation` — creates quotation draft pre-filled with inquiry data + items; status → `quoted`; activity event written.
 - All mutations write to `inquiry_activity` table (who, what, when, diff).
+
+### Bulk operations
+
+- All three bulk endpoints accept up to 200 ids; validate ownership/permission per row.
+- Atomic: wrap in DB transaction; partial failures collected as `failed: [{ id, reason }]` with HTTP 207 if any row fails, 200 if all succeed.
+- `bulk-status` runs the same status-machine validator per row; rows that would result in invalid transitions are listed in `failed`.
+- `bulk-export` reuses the `ListExportMixin` (step 01) but takes ids in body to stay under URL length limits; `format=csv|xlsx|pdf`.
+- Each successful row writes `inquiry_activity`.
 
 ---
 
