@@ -658,6 +658,102 @@ Ensures data security and controlled access across teams.
 
 **Outcome:** Enhanced security and structured user management.
 
+**11. Purchase & Procurement Management**
+
+Manages the end-to-end procurement lifecycle from purchase requisition
+to vendor payment, ensuring inventory replenishment and project-linked
+buying are fully integrated with the rest of the business.
+
+**Key Features:**
+
+- Centralized vendor / supplier master with:
+  - Contact and commercial details
+  - GST, PAN, and bank details
+  - Payment terms and credit days
+  - Performance rating and category mapping
+
+- Purchase requisition (PR) capture from:
+  - Inventory low-stock / reorder triggers
+  - Sales order MRP shortages
+  - Engineer / installation site requests
+  - Manual indent entry by authorized users
+
+- Request for Quotation (RFQ) to multiple vendors with comparative
+  quote analysis (price, lead time, terms)
+
+- Purchase Order (PO) generation with:
+  - Multi-currency support (future-ready)
+  - Tax, freight, and discount handling
+  - Delivery schedule and split deliveries
+  - Branded PDF generation and email dispatch
+
+- Approval workflow based on PO value, category, or vendor type
+
+- Goods Receipt Note (GRN) capture against PO with:
+  - Partial receipt support
+  - Quality check (QC) accept / reject / hold
+  - Auto-update of stock ledger and serial / batch registry
+
+- Vendor invoice / bill capture and 3-way matching (PO ↔ GRN ↔ Bill)
+
+- Payment scheduling, advances, debit / credit notes, and outstanding
+  tracking
+
+- Purchase return workflow with reason codes
+
+**Development Perspective:**
+
+- **Core entities:** Vendor, Vendor Contact, Vendor Bank Detail,
+  Purchase Requisition, PR Line Item, RFQ, RFQ Vendor, Vendor Quote,
+  Vendor Quote Line, Purchase Order, PO Line Item, PO Schedule, GRN,
+  GRN Line Item, QC Result, Vendor Invoice, Vendor Invoice Line,
+  Payment Voucher, Purchase Return, Purchase Approval Step.
+
+- **Requisition flow:** Requisitions should be raisable manually or
+  generated automatically from reorder rules and sales-order shortages,
+  with department, project, and cost-center tagging.
+
+- **RFQ and comparison:** The system should send RFQs to selected
+  vendors, capture their quotes, and present a side-by-side comparison
+  on price, lead time, taxes, and commercial terms before PO award.
+
+- **PO engine:** PO creation should support multiple line items,
+  delivery schedules, taxes, freight, advance payment terms, and
+  linkage back to the originating PR / sales order / project.
+
+- **Approval workflow:** Configurable approval rules based on PO value,
+  vendor category, product category, or budget overshoot, with full
+  audit history of approve / reject / return actions.
+
+- **GRN and QC:** Goods receipt should support partial deliveries,
+  rejection, hold for QC, and conditional acceptance, posting only the
+  accepted quantity to the stock ledger.
+
+- **3-way matching:** Vendor invoices should be validated against PO
+  rates and GRN quantities, with tolerance rules for price and quantity
+  variance, and exceptions routed for finance approval.
+
+- **Payment tracking:** The module should track advance payments,
+  scheduled payments, paid invoices, debit / credit notes, TDS, and
+  vendor outstanding balances.
+
+- **Returns and disputes:** Purchase returns should reverse stock and
+  financial entries, with reason capture, approval, and debit note
+  generation.
+
+- **Integration scope:** The module should integrate with inventory
+  (stock posting), sales orders (MRP fulfillment), finance (vendor
+  ledger and payments), and document management (PO PDF, invoice
+  scans, GRN attachments).
+
+- **Reporting requirements:** Open PR / PO status, vendor performance
+  (on-time, quality, price variance), GRN pending, invoice mismatch,
+  procurement spend by category / vendor / project, and outstanding
+  payables should be available.
+
+**Outcome:** Disciplined, auditable procurement that keeps inventory
+healthy and aligns vendor spend with sales demand and project needs.
+
 **Cross-Module Development Considerations**
 
 - **Master data management:** Customer, dealer, contractor, product,

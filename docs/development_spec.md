@@ -1133,6 +1133,389 @@
 
 ---
 
+## MODULE 11 — PURCHASE & PROCUREMENT
+
+### `vendors`
+
+| Field               | Type                                                              | Required | Notes            |
+| ------------------- | ----------------------------------------------------------------- | -------- | ---------------- |
+| id                  | BIGINT                                                            | Yes      |                  |
+| vendor_code         | VARCHAR(50)                                                       | Yes      | Unique           |
+| vendor_type         | ENUM('manufacturer', 'distributor', 'trader', 'service', 'other') | Yes      |                  |
+| company_name        | VARCHAR(255)                                                      | Yes      |                  |
+| contact_person_name | VARCHAR(100)                                                      | No       |                  |
+| mobile              | VARCHAR(20)                                                       | Yes      |                  |
+| alternate_mobile    | VARCHAR(20)                                                       | No       |                  |
+| email               | VARCHAR(150)                                                      | No       |                  |
+| website             | VARCHAR(255)                                                      | No       |                  |
+| gst_number          | VARCHAR(20)                                                       | No       |                  |
+| pan_number          | VARCHAR(20)                                                       | No       |                  |
+| msme_number         | VARCHAR(50)                                                       | No       |                  |
+| address_line1       | TEXT                                                              | No       |                  |
+| address_line2       | TEXT                                                              | No       |                  |
+| city                | VARCHAR(100)                                                      | No       |                  |
+| state               | VARCHAR(100)                                                      | No       |                  |
+| pincode             | VARCHAR(10)                                                       | No       |                  |
+| country             | VARCHAR(100)                                                      | No       | Default: 'India' |
+| payment_terms       | VARCHAR(100)                                                      | No       | e.g. 'Net 30'    |
+| credit_days         | INT                                                               | No       |                  |
+| currency            | VARCHAR(10)                                                       | No       | Default: 'INR'   |
+| category_tags       | VARCHAR(255)                                                      | No       | Comma-separated  |
+| performance_rating  | DECIMAL(3,2)                                                      | No       | 0.00 – 5.00      |
+| status              | ENUM('active', 'inactive', 'blacklisted', 'on_hold')              | Yes      | Default: active  |
+| notes               | TEXT                                                              | No       |                  |
+
+---
+
+### `vendor_contacts`
+
+| Field       | Type         | Required | Notes |
+| ----------- | ------------ | -------- | ----- |
+| id          | BIGINT       | Yes      |       |
+| vendor_id   | FK → vendors | Yes      |       |
+| name        | VARCHAR(100) | Yes      |       |
+| designation | VARCHAR(100) | No       |       |
+| mobile      | VARCHAR(20)  | Yes      |       |
+| email       | VARCHAR(150) | No       |       |
+| is_primary  | BOOLEAN      | Yes      |       |
+
+---
+
+### `vendor_bank_details`
+
+| Field          | Type         | Required | Notes |
+| -------------- | ------------ | -------- | ----- |
+| id             | BIGINT       | Yes      |       |
+| vendor_id      | FK → vendors | Yes      |       |
+| bank_name      | VARCHAR(150) | Yes      |       |
+| branch         | VARCHAR(150) | No       |       |
+| account_number | VARCHAR(50)  | Yes      |       |
+| account_holder | VARCHAR(150) | No       |       |
+| ifsc_code      | VARCHAR(20)  | Yes      |       |
+| swift_code     | VARCHAR(20)  | No       |       |
+| is_default     | BOOLEAN      | Yes      |       |
+
+---
+
+### `purchase_requisitions`
+
+| Field             | Type                                                                                                       | Required | Notes                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | -------- | ------------------------ |
+| id                | BIGINT                                                                                                     | Yes      |                          |
+| pr_number         | VARCHAR(50)                                                                                                | Yes      | Unique                   |
+| pr_date           | DATE                                                                                                       | Yes      |                          |
+| source            | ENUM('manual', 'reorder', 'sales_order', 'site_request')                                                   | Yes      |                          |
+| sales_order_id    | FK → sales_orders                                                                                          | No       | If source = sales_order  |
+| job_id            | FK → installation_jobs                                                                                     | No       | If source = site_request |
+| department        | VARCHAR(100)                                                                                               | No       |                          |
+| project_reference | VARCHAR(255)                                                                                               | No       |                          |
+| required_by_date  | DATE                                                                                                       | No       |                          |
+| priority          | ENUM('high', 'medium', 'low')                                                                              | Yes      | Default: medium          |
+| status            | ENUM('draft', 'pending_approval', 'approved', 'rejected', 'rfq_sent', 'po_created', 'closed', 'cancelled') | Yes      | Default: draft           |
+| requested_by      | FK → users                                                                                                 | Yes      |                          |
+| approved_by       | FK → users                                                                                                 | No       |                          |
+| approved_at       | DATETIME                                                                                                   | No       |                          |
+| rejection_reason  | TEXT                                                                                                       | No       |                          |
+| notes             | TEXT                                                                                                       | No       |                          |
+
+---
+
+### `purchase_requisition_items`
+
+| Field               | Type                       | Required | Notes |
+| ------------------- | -------------------------- | -------- | ----- |
+| id                  | BIGINT                     | Yes      |       |
+| pr_id               | FK → purchase_requisitions | Yes      |       |
+| product_id          | FK → products              | No       |       |
+| product_description | VARCHAR(255)               | Yes      |       |
+| specification_notes | TEXT                       | No       |       |
+| quantity            | DECIMAL(10,2)              | Yes      |       |
+| unit                | VARCHAR(50)                | No       |       |
+| estimated_unit_cost | DECIMAL(15,2)              | No       |       |
+| estimated_total     | DECIMAL(15,2)              | No       |       |
+| warehouse_id        | FK → warehouses            | No       |       |
+| notes               | TEXT                       | No       |       |
+
+---
+
+### `rfqs`
+
+| Field      | Type                                                                | Required | Notes          |
+| ---------- | ------------------------------------------------------------------- | -------- | -------------- |
+| id         | BIGINT                                                              | Yes      |                |
+| rfq_number | VARCHAR(50)                                                         | Yes      | Unique         |
+| pr_id      | FK → purchase_requisitions                                          | No       |                |
+| rfq_date   | DATE                                                                | Yes      |                |
+| due_date   | DATE                                                                | No       |                |
+| status     | ENUM('draft', 'sent', 'responses_received', 'awarded', 'cancelled') | Yes      | Default: draft |
+| awarded_to | FK → vendors                                                        | No       |                |
+| awarded_at | DATETIME                                                            | No       |                |
+| notes      | TEXT                                                                | No       |                |
+
+---
+
+### `rfq_vendors`
+
+| Field     | Type                                                    | Required | Notes            |
+| --------- | ------------------------------------------------------- | -------- | ---------------- |
+| id        | BIGINT                                                  | Yes      |                  |
+| rfq_id    | FK → rfqs                                               | Yes      |                  |
+| vendor_id | FK → vendors                                            | Yes      |                  |
+| sent_at   | DATETIME                                                | No       |                  |
+| status    | ENUM('pending', 'responded', 'declined', 'no_response') | Yes      | Default: pending |
+
+---
+
+### `vendor_quotes`
+
+| Field          | Type          | Required | Notes           |
+| -------------- | ------------- | -------- | --------------- |
+| id             | BIGINT        | Yes      |                 |
+| rfq_id         | FK → rfqs     | Yes      |                 |
+| vendor_id      | FK → vendors  | Yes      |                 |
+| quote_number   | VARCHAR(100)  | No       | Vendor-supplied |
+| quote_date     | DATE          | Yes      |                 |
+| valid_until    | DATE          | No       |                 |
+| lead_time_days | INT           | No       |                 |
+| total_amount   | DECIMAL(15,2) | No       |                 |
+| currency       | VARCHAR(10)   | No       | Default: 'INR'  |
+| payment_terms  | VARCHAR(100)  | No       |                 |
+| freight_terms  | VARCHAR(100)  | No       |                 |
+| notes          | TEXT          | No       |                 |
+
+---
+
+### `vendor_quote_items`
+
+| Field               | Type               | Required | Notes |
+| ------------------- | ------------------ | -------- | ----- |
+| id                  | BIGINT             | Yes      |       |
+| vendor_quote_id     | FK → vendor_quotes | Yes      |       |
+| product_id          | FK → products      | No       |       |
+| product_description | VARCHAR(255)       | Yes      |       |
+| quantity            | DECIMAL(10,2)      | Yes      |       |
+| unit                | VARCHAR(50)        | No       |       |
+| unit_price          | DECIMAL(15,2)      | Yes      |       |
+| discount_percent    | DECIMAL(5,2)       | No       |       |
+| tax_id              | FK → tax_rules     | No       |       |
+| line_total          | DECIMAL(15,2)      | Yes      |       |
+| notes               | TEXT               | No       |       |
+
+---
+
+### `purchase_orders`
+
+| Field                | Type                                                                                                           | Required | Notes          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- | -------- | -------------- |
+| id                   | BIGINT                                                                                                         | Yes      |                |
+| po_number            | VARCHAR(50)                                                                                                    | Yes      | Unique         |
+| po_date              | DATE                                                                                                           | Yes      |                |
+| vendor_id            | FK → vendors                                                                                                   | Yes      |                |
+| pr_id                | FK → purchase_requisitions                                                                                     | No       |                |
+| rfq_id               | FK → rfqs                                                                                                      | No       |                |
+| sales_order_id       | FK → sales_orders                                                                                              | No       | Project-link   |
+| billing_address      | TEXT                                                                                                           | No       |                |
+| shipping_address     | TEXT                                                                                                           | No       |                |
+| expected_delivery    | DATE                                                                                                           | No       |                |
+| payment_terms        | VARCHAR(100)                                                                                                   | No       |                |
+| freight_terms        | VARCHAR(100)                                                                                                   | No       |                |
+| currency             | VARCHAR(10)                                                                                                    | No       | Default: 'INR' |
+| subtotal             | DECIMAL(15,2)                                                                                                  | Yes      |                |
+| discount_total       | DECIMAL(15,2)                                                                                                  | No       |                |
+| tax_total            | DECIMAL(15,2)                                                                                                  | No       |                |
+| freight_amount       | DECIMAL(15,2)                                                                                                  | No       |                |
+| grand_total          | DECIMAL(15,2)                                                                                                  | Yes      |                |
+| advance_paid         | DECIMAL(15,2)                                                                                                  | No       |                |
+| status               | ENUM('draft', 'pending_approval', 'approved', 'sent', 'partially_received', 'received', 'closed', 'cancelled') | Yes      | Default: draft |
+| approved_by          | FK → users                                                                                                     | No       |                |
+| approved_at          | DATETIME                                                                                                       | No       |                |
+| sent_at              | DATETIME                                                                                                       | No       |                |
+| terms_and_conditions | TEXT                                                                                                           | No       |                |
+| notes                | TEXT                                                                                                           | No       |                |
+
+---
+
+### `purchase_order_items`
+
+| Field               | Type                 | Required | Notes      |
+| ------------------- | -------------------- | -------- | ---------- |
+| id                  | BIGINT               | Yes      |            |
+| po_id               | FK → purchase_orders | Yes      |            |
+| product_id          | FK → products        | No       |            |
+| product_description | VARCHAR(255)         | Yes      |            |
+| specification_notes | TEXT                 | No       |            |
+| quantity            | DECIMAL(10,2)        | Yes      |            |
+| unit                | VARCHAR(50)          | No       |            |
+| unit_price          | DECIMAL(15,2)        | Yes      |            |
+| discount_percent    | DECIMAL(5,2)         | No       |            |
+| tax_id              | FK → tax_rules       | No       |            |
+| tax_amount          | DECIMAL(15,2)        | No       |            |
+| line_total          | DECIMAL(15,2)        | Yes      |            |
+| received_quantity   | DECIMAL(10,2)        | No       | Default: 0 |
+| pending_quantity    | DECIMAL(10,2)        | No       | Computed   |
+| warehouse_id        | FK → warehouses      | No       |            |
+| notes               | TEXT                 | No       |            |
+
+---
+
+### `po_delivery_schedules`
+
+| Field          | Type                                                | Required | Notes            |
+| -------------- | --------------------------------------------------- | -------- | ---------------- |
+| id             | BIGINT                                              | Yes      |                  |
+| po_item_id     | FK → purchase_order_items                           | Yes      |                  |
+| scheduled_date | DATE                                                | Yes      |                  |
+| quantity       | DECIMAL(10,2)                                       | Yes      |                  |
+| status         | ENUM('pending', 'received', 'overdue', 'cancelled') | Yes      | Default: pending |
+
+---
+
+### `purchase_approvals`
+
+| Field       | Type                                                | Required | Notes            |
+| ----------- | --------------------------------------------------- | -------- | ---------------- |
+| id          | BIGINT                                              | Yes      |                  |
+| entity_type | ENUM('purchase_requisition', 'purchase_order')      | Yes      |                  |
+| entity_id   | BIGINT                                              | Yes      |                  |
+| level       | INT                                                 | Yes      | 1, 2, 3          |
+| approver_id | FK → users                                          | Yes      |                  |
+| status      | ENUM('pending', 'approved', 'rejected', 'returned') | Yes      | Default: pending |
+| acted_at    | DATETIME                                            | No       |                  |
+| comments    | TEXT                                                | No       |                  |
+
+---
+
+### `goods_receipt_notes`
+
+| Field          | Type                                                                                    | Required | Notes              |
+| -------------- | --------------------------------------------------------------------------------------- | -------- | ------------------ |
+| id             | BIGINT                                                                                  | Yes      |                    |
+| grn_number     | VARCHAR(50)                                                                             | Yes      | Unique             |
+| grn_date       | DATE                                                                                    | Yes      |                    |
+| po_id          | FK → purchase_orders                                                                    | Yes      |                    |
+| vendor_id      | FK → vendors                                                                            | Yes      |                    |
+| warehouse_id   | FK → warehouses                                                                         | Yes      |                    |
+| invoice_number | VARCHAR(100)                                                                            | No       | Vendor invoice ref |
+| invoice_date   | DATE                                                                                    | No       |                    |
+| vehicle_number | VARCHAR(50)                                                                             | No       |                    |
+| transporter    | VARCHAR(150)                                                                            | No       |                    |
+| received_by    | FK → users                                                                              | Yes      |                    |
+| status         | ENUM('draft', 'pending_qc', 'completed', 'partially_accepted', 'rejected', 'cancelled') | Yes      | Default: draft     |
+| notes          | TEXT                                                                                    | No       |                    |
+
+---
+
+### `grn_items`
+
+| Field              | Type                                               | Required | Notes                   |
+| ------------------ | -------------------------------------------------- | -------- | ----------------------- |
+| id                 | BIGINT                                             | Yes      |                         |
+| grn_id             | FK → goods_receipt_notes                           | Yes      |                         |
+| po_item_id         | FK → purchase_order_items                          | Yes      |                         |
+| product_id         | FK → products                                      | No       |                         |
+| received_quantity  | DECIMAL(10,2)                                      | Yes      |                         |
+| accepted_quantity  | DECIMAL(10,2)                                      | Yes      |                         |
+| rejected_quantity  | DECIMAL(10,2)                                      | No       | Default: 0              |
+| qc_status          | ENUM('pending', 'accepted', 'rejected', 'on_hold') | Yes      | Default: pending        |
+| qc_remarks         | TEXT                                               | No       |                         |
+| batch_number       | VARCHAR(100)                                       | No       |                         |
+| serial_numbers     | TEXT                                               | No       | Comma-separated or JSON |
+| warehouse_location | VARCHAR(100)                                       | No       |                         |
+
+---
+
+### `vendor_invoices`
+
+| Field          | Type                                                                                     | Required | Notes                   |
+| -------------- | ---------------------------------------------------------------------------------------- | -------- | ----------------------- |
+| id             | BIGINT                                                                                   | Yes      |                         |
+| invoice_number | VARCHAR(100)                                                                             | Yes      | Vendor's invoice number |
+| invoice_date   | DATE                                                                                     | Yes      |                         |
+| vendor_id      | FK → vendors                                                                             | Yes      |                         |
+| po_id          | FK → purchase_orders                                                                     | No       |                         |
+| grn_id         | FK → goods_receipt_notes                                                                 | No       |                         |
+| subtotal       | DECIMAL(15,2)                                                                            | Yes      |                         |
+| tax_total      | DECIMAL(15,2)                                                                            | No       |                         |
+| freight_amount | DECIMAL(15,2)                                                                            | No       |                         |
+| grand_total    | DECIMAL(15,2)                                                                            | Yes      |                         |
+| due_date       | DATE                                                                                     | No       |                         |
+| match_status   | ENUM('unmatched', 'matched', 'price_variance', 'qty_variance', 'on_hold')                | Yes      | Default: unmatched      |
+| status         | ENUM('draft', 'verified', 'approved', 'paid', 'partially_paid', 'disputed', 'cancelled') | Yes      | Default: draft          |
+| attachment_id  | FK → attachments                                                                         | No       | Scanned bill            |
+| notes          | TEXT                                                                                     | No       |                         |
+
+---
+
+### `vendor_invoice_items`
+
+| Field       | Type                      | Required | Notes |
+| ----------- | ------------------------- | -------- | ----- |
+| id          | BIGINT                    | Yes      |       |
+| invoice_id  | FK → vendor_invoices      | Yes      |       |
+| po_item_id  | FK → purchase_order_items | No       |       |
+| product_id  | FK → products             | No       |       |
+| description | VARCHAR(255)              | Yes      |       |
+| quantity    | DECIMAL(10,2)             | Yes      |       |
+| unit_price  | DECIMAL(15,2)             | Yes      |       |
+| tax_amount  | DECIMAL(15,2)             | No       |       |
+| line_total  | DECIMAL(15,2)             | Yes      |       |
+
+---
+
+### `vendor_payments`
+
+| Field            | Type                                                                    | Required | Notes                 |
+| ---------------- | ----------------------------------------------------------------------- | -------- | --------------------- |
+| id               | BIGINT                                                                  | Yes      |                       |
+| payment_number   | VARCHAR(50)                                                             | Yes      | Unique                |
+| payment_date     | DATE                                                                    | Yes      |                       |
+| vendor_id        | FK → vendors                                                            | Yes      |                       |
+| invoice_id       | FK → vendor_invoices                                                    | No       | Optional for advances |
+| po_id            | FK → purchase_orders                                                    | No       |                       |
+| payment_type     | ENUM('advance', 'against_invoice', 'on_account', 'refund')              | Yes      |                       |
+| payment_method   | ENUM('bank_transfer', 'cheque', 'cash', 'upi', 'rtgs', 'neft', 'other') | Yes      |                       |
+| reference_number | VARCHAR(100)                                                            | No       | UTR / cheque no       |
+| amount           | DECIMAL(15,2)                                                           | Yes      |                       |
+| tds_amount       | DECIMAL(15,2)                                                           | No       |                       |
+| status           | ENUM('pending', 'processed', 'cleared', 'failed', 'cancelled')          | Yes      | Default: pending      |
+| notes            | TEXT                                                                    | No       |                       |
+
+---
+
+### `purchase_returns`
+
+| Field             | Type                                                             | Required | Notes          |
+| ----------------- | ---------------------------------------------------------------- | -------- | -------------- |
+| id                | BIGINT                                                           | Yes      |                |
+| return_number     | VARCHAR(50)                                                      | Yes      | Unique         |
+| return_date       | DATE                                                             | Yes      |                |
+| vendor_id         | FK → vendors                                                     | Yes      |                |
+| grn_id            | FK → goods_receipt_notes                                         | No       |                |
+| po_id             | FK → purchase_orders                                             | No       |                |
+| reason_code       | ENUM('damaged', 'wrong_item', 'quality_fail', 'excess', 'other') | Yes      |                |
+| reason_notes      | TEXT                                                             | No       |                |
+| status            | ENUM('draft', 'approved', 'dispatched', 'closed', 'cancelled')   | Yes      | Default: draft |
+| debit_note_no     | VARCHAR(100)                                                     | No       |                |
+| debit_note_amount | DECIMAL(15,2)                                                    | No       |                |
+| approved_by       | FK → users                                                       | No       |                |
+
+---
+
+### `purchase_return_items`
+
+| Field       | Type                  | Required | Notes |
+| ----------- | --------------------- | -------- | ----- |
+| id          | BIGINT                | Yes      |       |
+| return_id   | FK → purchase_returns | Yes      |       |
+| grn_item_id | FK → grn_items        | No       |       |
+| product_id  | FK → products         | No       |       |
+| description | VARCHAR(255)          | Yes      |       |
+| quantity    | DECIMAL(10,2)         | Yes      |       |
+| unit_price  | DECIMAL(15,2)         | No       |       |
+| line_total  | DECIMAL(15,2)         | No       |       |
+
+---
+
 ---
 
 # PART B — PHASED DEVELOPMENT ROADMAP

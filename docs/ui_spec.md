@@ -1789,3 +1789,159 @@ const engineers = [
   },
 ];
 ```
+
+
+---
+
+## SECTION 14 — PURCHASE MODULE
+
+> Skeleton spec only — sub-screens to be detailed after scope validation. Follow the same design system (page header + filter bar + DataTable + side Sheet for forms) used in Inquiry / Order modules.
+
+---
+
+### Screen: Vendor List
+
+**Route:** `/purchase/vendors`
+**File:** `src/pages/purchase/VendorListPage.jsx`
+
+- Page header: "Vendors" + count + `+ New Vendor` button
+- Filter bar: search (name / GST / mobile), `Select` vendor type, status, category tag, territory
+- Table columns: Vendor Code · Company Name · Type · GST · Contact · Payment Terms · Performance Rating (stars) · Status · Actions
+- Status badges: Active (`emerald`), Inactive (`neutral`), Blacklisted (`red`), On Hold (`amber`)
+- Row click → Vendor Detail page
+
+---
+
+### Screen: Vendor Detail
+
+**Route:** `/purchase/vendors/:id`
+**File:** `src/pages/purchase/VendorDetailPage.jsx`
+
+- Tabs: Overview · Contacts · Bank Details · Purchase Orders · GRNs · Invoices · Payments · Documents
+- Header card: company name, GST, performance rating, outstanding payable, lifetime spend
+- Quick actions: New PO · New RFQ · Mark Blacklisted
+
+---
+
+### Screen: Purchase Requisitions (PR)
+
+**Route:** `/purchase/requisitions`
+**File:** `src/pages/purchase/PRListPage.jsx`
+
+- Filters: status, source (manual / reorder / sales-order / site-request), priority, date range, requested-by
+- Table columns: PR # · Date · Source · Project / SO Ref · Items · Required By · Priority · Status · Requested By · Actions
+- Status badges: Draft (`neutral`), Pending Approval (`amber`), Approved (`emerald`), Rejected (`red`), RFQ Sent (`blue`), PO Created (`indigo`), Closed (`green`), Cancelled (`red`)
+- Bulk actions: Approve, Reject, Send to RFQ
+- New PR form (Sheet): line-item editor, link to SO / job, target warehouse, required-by-date
+
+---
+
+### Screen: RFQ & Quote Comparison
+
+**Route:** `/purchase/rfqs` and `/purchase/rfqs/:id`
+**File:** `src/pages/purchase/RFQListPage.jsx`, `RFQDetailPage.jsx`
+
+- List: RFQ # · Date · PR Ref · Vendors Invited · Responses · Due Date · Status · Awarded To
+- Detail: tabs for Vendors, Responses, Comparison
+- Comparison view: matrix table — rows = line items, columns = vendors, cells = unit price + lead time; highlight lowest price (green) and shortest lead time (sky); bottom row totals; "Award to vendor" button per column
+
+---
+
+### Screen: Purchase Order List
+
+**Route:** `/purchase/orders`
+**File:** `src/pages/purchase/POListPage.jsx`
+
+- KPI strip (top of page): Open POs · Pending Approval · Awaiting GRN · Overdue Delivery · Total PO Value (this month)
+- Filters: status, vendor, date range, project / SO ref, warehouse
+- Table columns: PO # · Date · Vendor · Items · Grand Total · Expected Delivery · Status · Actions
+- Status badges: Draft (`neutral`), Pending Approval (`amber`), Approved (`emerald`), Sent (`blue`), Partially Received (`indigo`), Received (`green`), Closed (`green`), Cancelled (`red`)
+
+---
+
+### Screen: Purchase Order Detail / Editor
+
+**Route:** `/purchase/orders/:id`
+**File:** `src/pages/purchase/PODetailPage.jsx`
+
+- Header: PO #, vendor, status badge, grand total, expected delivery
+- Tabs: Items · Delivery Schedule · Approvals · GRNs · Invoices · Payments · Activity · Documents
+- Items table: editable in draft state — product, spec, qty, unit, price, discount, tax, line total, received qty progress bar
+- Side panel: vendor card, billing/shipping address, payment terms, freight terms, currency
+- Footer summary: subtotal, discount, tax, freight, grand total, advance paid, balance due
+- Actions: Send to Vendor (PDF) · Submit for Approval · Approve · Cancel · Convert to GRN · Duplicate
+- PDF preview drawer mirroring quotation PDF style
+
+---
+
+### Screen: Goods Receipt Notes (GRN)
+
+**Route:** `/purchase/grns` and `/purchase/grns/:id`
+**File:** `src/pages/purchase/GRNListPage.jsx`, `GRNDetailPage.jsx`
+
+- List columns: GRN # · Date · PO Ref · Vendor · Warehouse · Status · Received By · Actions
+- Status badges: Draft (`neutral`), Pending QC (`amber`), Completed (`green`), Partially Accepted (`indigo`), Rejected (`red`), Cancelled (`red`)
+- Detail items table: PO line · received qty · accepted qty · rejected qty · QC status (Accept / Reject / Hold radio per row) · batch / serial · warehouse location · QC remarks
+- Sticky bottom action bar: Save Draft · Submit QC · Post to Stock
+
+---
+
+### Screen: Vendor Invoices & 3-Way Match
+
+**Route:** `/purchase/invoices`
+**File:** `src/pages/purchase/VendorInvoiceListPage.jsx`
+
+- Filters: status, match status, vendor, due-date range, overdue toggle
+- Table columns: Invoice # · Date · Vendor · PO Ref · GRN Ref · Grand Total · Due Date · Match Status · Status · Actions
+- Match Status badges: Unmatched (`neutral`), Matched (`green`), Price Variance (`amber`), Qty Variance (`amber`), On Hold (`orange`)
+- Detail view: side-by-side panel — Invoice vs PO vs GRN with variance highlights (red text on differing values)
+- Actions: Approve · Hold · Dispute · Schedule Payment
+
+---
+
+### Screen: Vendor Payments
+
+**Route:** `/purchase/payments`
+**File:** `src/pages/purchase/PaymentListPage.jsx`
+
+- Table columns: Payment # · Date · Vendor · Type (Advance / Against Invoice / On Account / Refund) · Method · Reference · Amount · TDS · Status
+- Status badges: Pending (`amber`), Processed (`blue`), Cleared (`green`), Failed (`red`), Cancelled (`neutral`)
+- New Payment dialog: vendor → outstanding invoices list (multi-select with allocation amounts) → payment method → reference number → TDS
+
+---
+
+### Screen: Purchase Returns
+
+**Route:** `/purchase/returns`
+**File:** `src/pages/purchase/PurchaseReturnListPage.jsx`
+
+- Filters: vendor, reason code, status, date range
+- Table columns: Return # · Date · Vendor · GRN Ref · Reason · Qty · Debit Note # · Status · Actions
+- New Return form: pick GRN → choose items → enter return qty → reason code → notes → generates debit note number on approval
+
+---
+
+### Screen: Purchase Dashboard (optional Phase-2)
+
+**Route:** `/purchase/dashboard`
+
+- KPI cards: Open PR Count · Open PO Value · GRN Pending · Invoice Mismatch · Outstanding Payable · Avg PO Cycle Time
+- Charts: Spend by Category (donut) · Top 10 Vendors by Spend (bar) · Monthly PO Trend (line) · On-time Delivery % (gauge)
+- Tables: Overdue Deliveries · Pending Approvals · Upcoming Payments
+
+---
+
+### Sidebar Navigation (Purchase Section)
+
+Add a new **Purchase** section to the sidebar (between Inventory and Dispatch, or under a dedicated `── Procurement ──` divider):
+
+- Vendors
+- Requisitions
+- RFQs
+- Purchase Orders
+- GRNs
+- Invoices
+- Payments
+- Returns
+
+Roles with access: Admin, Purchase Manager, Purchase Executive, Accounts (read-only on financial sub-screens), Store Keeper (GRN-only).
