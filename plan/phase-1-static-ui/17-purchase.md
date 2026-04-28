@@ -194,6 +194,102 @@ Topbar `GlobalSearch` (step 16.1) — extend `searchAll()` to also scan `vendors
 
 ---
 
+## Additional screens & affordances (gap-fill)
+
+### Vendor module
+
+- **VendorsListPage** — add a **Performance** column (badge: ★ rating + on-time %); add bulk action *Toggle Active*.
+- **VendorDetailPage** — add a 9th tab **Performance** with: on-time delivery %, avg QC accept %, avg price variance vs PO, lifetime spend, AP outstanding, top 5 supplied products. Renders 3 sparkline cards + a 12-month trend line.
+- **VendorDetailPage** — add an **Activity** sub-tab on Overview (chronological events: PO sent, GRN posted, invoice received, payment cleared, blacklist toggled).
+- Header right of every vendor screen carries an `AttachmentsTab` (vendor agreement, MSA, PAN/GST scans, MSME cert) sharing the existing `Attachments` primitive.
+
+### PR + RFQ
+
+- **PRListPage** bulk actions extended: Approve, Reject (reason), Send to RFQ, Convert to PO (single-vendor short-circuit), Cancel, Export.
+- **PRDetailPage** — add an **Attachments** tab (specs, customer drawings, vendor catalogues).
+- **RFQListPage** — "+ New RFQ" Sheet flow: pick PR (or blank) → line items inherited → invite vendors (multi-select with last-quoted-price hint) → due date → email subject + body (uses settings email template `rfq_invite`).
+- **RFQDetailPage / Comparison** — add a per-line *Notes* column for buyer remarks; add an **Award split** mode that lets the buyer award different lines to different vendors (creates one PO draft per awarded vendor).
+- RFQ email-send confirmation drawer mirrors quotation send pattern.
+
+### Purchase Order
+
+- **PODetailPage** — add an **Amendment** action (post-`sent` only): opens a side-by-side editor that diffs proposed vs current line items / qty / price; submitting kicks an approval cycle and freezes the PO until resolved (mirrors SO amend pattern).
+- **PODetailPage** — add a **PDF Preview** drawer + **Send to Vendor** dialog (subject, recipients, cc, body from `po_send` email template, attachment toggle).
+- **PO header** form — add **Currency** + **Exchange Rate** fields (default INR / 1.00); when non-INR, footer shows both currency totals.
+- **PO line tax** — split into CGST / SGST / IGST columns (Indian compliance) with auto-derivation based on vendor state vs warehouse state; show place-of-supply read-only field in header.
+- **POListPage** — add bulk actions: Approve, Send, Cancel, Export. Add column toggle for *Place of supply* and *Currency*.
+- **PODetailPage** Items tab — add a **Backorder / Pending** chip per row showing `qty_pending = qty - received_quantity` so partial receipts are visible at a glance.
+
+### GRN
+
+- **GRNListPage** — add bulk *Submit QC* + *Post to Stock* (only if every selected GRN is QC-complete).
+- **GRNDetailPage** — explicit **Direct GRN (no PO)** mode disabled by default; gated behind a feature flag + admin-only role. UI shows the toggle but a confirmation dialog explains it is disallowed in mock mode (decision documented).
+- **GRNDetailPage** mobile layout — store-keeper friendly: stacked cards per item with large QC radio buttons, photo-attach button per row (uses existing dropzone primitive), "Save & next" pager between rows.
+- **GRNDetailPage** — attachments tab for delivery challan scan, packing list, e-way bill copy.
+
+### Vendor Invoices
+
+- **VendorInvoiceListPage** — bulk *Approve* / *Hold* / *Schedule Payment*; add **Aging bucket** column (`current | 0-30 | 31-60 | 61-90 | 90+`) on Payments + Invoices lists.
+- **VendorInvoiceDetailPage** — add **TDS** + **GST input credit** read-only block (computed from line totals + tax rules); footer shows net payable after TDS deduction.
+- 3-way match panel — add an **Override match** dialog (admin-only) that records reason + writes audit entry, sets `match_status = on_hold`.
+- Add an **Attachments** tab (scanned bill PDF + supporting docs).
+
+### Payments
+
+- **PaymentListPage** — add **Payable Aging** KPI strip above the table (5 buckets) sourced from `/stats/payable-aging`.
+- **New Payment** dialog — add TDS computation helper (% of base) + reference attachment upload (cheque copy / UTR screenshot).
+- Add **Payment Advice** action (post-`processed`): renders PDF + dialog to email vendor (uses `payment_advice` email template).
+- Add **Refund / Reversal** sub-action on cleared payments (admin-only, reason required).
+
+### Returns
+
+- **PurchaseReturnListPage** — add bulk *Approve* + *Cancel*.
+- **PurchaseReturnDetailPage** (new) — mirrors GRN detail with reverse direction; shows generated debit note PDF preview drawer; tabs Items / Activity / Attachments.
+
+### Dashboard
+
+- Add **Top Late Vendors** table (overdue deliveries + days late) and **Open RFQs Awaiting Response** widget.
+- Charts gain CSV export action via existing `ExportButton` primitive.
+
+### Settings (admin) cross-screen
+
+Add two admin sub-screens under existing `/admin/settings` (consumed in step 14 admin):
+
+- **Purchase Approval Rules** editor — conditions table (entity / field / operator / value) + level chain (role / user). Reuses existing rule-builder primitive from quotation approvals.
+- **Match Tolerance** form — quantity tolerance %, unit tolerance, price tolerance %, allow-negative-variance toggle.
+
+Mocks: `frontend/src/mocks/admin-purchase.ts` with 4 sample rules + default tolerance config.
+
+### Cross-cutting UI primitives
+
+- Empty states + skeletons across every list and detail page (mirrors documents/orders cadence).
+- Audit log side-drawer ("View activity") on every detail page.
+- Print stylesheet for PO + GRN + Debit Note PDFs.
+- All money values respect the document `currency` field via the existing `formatMoney` helper (extend to accept `currency` arg).
+- All pages tested at 360 / 768 / 1280 / 1536 widths; GRN detail explicitly tested on 360 (store-keeper).
+
+### Global search + nav
+
+- `searchAll()` extended to scan `vendors`, `purchase_requisitions`, `rfqs`, `purchase_orders`, `grns`, `vendor_invoices`, `vendor_payments`, `purchase_returns` so every numbered document is findable.
+- Topbar quick-action menu gets a **+ New PO** shortcut (role-gated to purchase_manager / purchase_executive / admin).
+
+---
+
+## Verification (additional)
+
+- [ ] PO Amendment flow freezes the PO and unblocks only after approval action.
+- [ ] PO PDF preview + email-send dialog uses the `po_send` template; recipients default to the vendor primary contact.
+- [ ] CGST/SGST/IGST split derives correctly when vendor state == warehouse state vs not.
+- [ ] GRN mobile view at 360 px keeps every action reachable without horizontal scroll.
+- [ ] Vendor performance tab renders even when vendor has zero POs (no NaN, no division-by-zero).
+- [ ] Aging buckets on Invoices + Payments match dashboard KPI.
+- [ ] Award-split RFQ creates one draft PO per awarded vendor with correct line allocation.
+- [ ] All money formatting honours per-document currency.
+- [ ] Audit drawer accessible from every detail page.
+- [ ] Approval rules + tolerance settings screens render and persist to the mock store.
+
+---
+
 ## Verification
 
 - [ ] All 14 (or 15 with dashboard) routes render without console errors.
@@ -222,6 +318,8 @@ One commit per major sub-area (matches Phase-1 cadence):
 5. `feat(ui): vendor invoices + 3-way match`
 6. `feat(ui): vendor payments + purchase returns`
 7. `feat(ui): purchase dashboard + sidebar nav` (optional)
+8. `feat(ui): purchase amendments + currency + tax split`
+9. `feat(ui): purchase admin settings (approval rules + tolerance)`
 
 ---
 
