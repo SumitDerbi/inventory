@@ -60,6 +60,21 @@ const TransportersPage = lazy(
     () => import('@/pages/dispatch/TransportersPage'),
 );
 const VehiclesPage = lazy(() => import('@/pages/dispatch/VehiclesPage'));
+const PurchaseLayout = lazy(() => import('@/pages/purchase/PurchaseLayout'));
+const POListPage = lazy(() => import('@/pages/purchase/POListPage'));
+const PODetailPage = lazy(() => import('@/pages/purchase/PODetailPage'));
+const PRListPage = lazy(() => import('@/pages/purchase/PRListPage'));
+const PRDetailPage = lazy(() => import('@/pages/purchase/PRDetailPage'));
+const RFQListPage = lazy(() => import('@/pages/purchase/RFQListPage'));
+const RFQDetailPage = lazy(() => import('@/pages/purchase/RFQDetailPage'));
+const GRNListPage = lazy(() => import('@/pages/purchase/GRNListPage'));
+const GRNDetailPage = lazy(() => import('@/pages/purchase/GRNDetailPage'));
+const VendorInvoiceListPage = lazy(() => import('@/pages/purchase/VendorInvoiceListPage'));
+const VendorInvoiceDetailPage = lazy(() => import('@/pages/purchase/VendorInvoiceDetailPage'));
+const PaymentListPage = lazy(() => import('@/pages/purchase/PaymentListPage'));
+const PurchaseReturnListPage = lazy(() => import('@/pages/purchase/PurchaseReturnListPage'));
+const VendorsListPage = lazy(() => import('@/pages/purchase/VendorsListPage'));
+const VendorDetailPage = lazy(() => import('@/pages/purchase/VendorDetailPage'));
 const JobsLayout = lazy(() => import('@/pages/jobs/JobsLayout'));
 const JobsListPage = lazy(() => import('@/pages/jobs/JobsListPage'));
 const JobDetailPage = lazy(() => import('@/pages/jobs/JobDetailPage'));
@@ -130,6 +145,26 @@ export const router = createBrowserRouter(
                         { path: 'transporters', element: <TransportersPage /> },
                         { path: 'vehicles', element: <VehiclesPage /> },
                         { path: ':id', element: <DispatchDetailPage /> },
+                    ],
+                },
+                {
+                    path: 'purchase',
+                    element: <PurchaseLayout />,
+                    children: [
+                        { index: true, element: <POListPage /> },
+                        { path: 'orders/:id', element: <PODetailPage /> },
+                        { path: 'requisitions', element: <PRListPage /> },
+                        { path: 'requisitions/:id', element: <PRDetailPage /> },
+                        { path: 'rfqs', element: <RFQListPage /> },
+                        { path: 'rfqs/:id', element: <RFQDetailPage /> },
+                        { path: 'grns', element: <GRNListPage /> },
+                        { path: 'grns/:id', element: <GRNDetailPage /> },
+                        { path: 'invoices', element: <VendorInvoiceListPage /> },
+                        { path: 'invoices/:id', element: <VendorInvoiceDetailPage /> },
+                        { path: 'payments', element: <PaymentListPage /> },
+                        { path: 'returns', element: <PurchaseReturnListPage /> },
+                        { path: 'vendors', element: <VendorsListPage /> },
+                        { path: 'vendors/:id', element: <VendorDetailPage /> },
                     ],
                 },
                 {
