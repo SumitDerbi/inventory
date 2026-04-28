@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { LucideProps } from 'lucide-react';
 import {
     Building2,
+    ClipboardCheck,
     Eye,
     FileText,
     FileSpreadsheet,
@@ -22,12 +23,13 @@ export interface NavItem {
     label: string;
     to: string;
     icon: ComponentType<LucideProps>;
-    section: 'main' | 'masters' | 'admin';
+    section: 'workspace' | 'main' | 'masters' | 'admin';
     /** Human-readable breadcrumb label (defaults to `label`). */
     breadcrumb?: string;
 }
 
 export const NAV_ITEMS: NavItem[] = [
+    { label: 'Approvals', to: '/approvals', icon: ClipboardCheck, section: 'workspace' },
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, section: 'main' },
     { label: 'Inquiries', to: '/inquiries', icon: MessageSquare, section: 'main' },
     { label: 'Quotations', to: '/quotations', icon: FileText, section: 'main' },

@@ -2,6 +2,7 @@ import { Flame, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { NAV_ITEMS } from '@/app/navConfig';
 import { useAuth } from '@/app/auth-context';
+import { approvalKpis } from '@/mocks/approvals';
 import { cn } from '@/lib/cn';
 
 export interface SidebarProps {
@@ -19,9 +20,11 @@ export function Sidebar({
     onSignOut,
 }: SidebarProps) {
     const { user, signOut } = useAuth();
+    const workspace = NAV_ITEMS.filter((n) => n.section === 'workspace');
     const main = NAV_ITEMS.filter((n) => n.section === 'main');
     const masters = NAV_ITEMS.filter((n) => n.section === 'masters');
     const admin = NAV_ITEMS.filter((n) => n.section === 'admin');
+    const awaitingCount = approvalKpis().awaitingMe;
 
     return (
         <aside
@@ -50,6 +53,20 @@ export function Sidebar({
                 className="flex-1 overflow-y-auto py-3"
                 aria-label="Primary navigation"
             >
+                <ul className="space-y-0.5">
+                    {workspace.map((item) => (
+                        <NavItemRow
+                            key={item.to}
+                            item={item}
+                            collapsed={collapsed}
+                            onNavigate={onNavigate}
+                            badge={item.to === '/approvals' && awaitingCount > 0 ? awaitingCount : undefined}
+                        />
+                    ))}
+                </ul>
+
+                {workspace.length > 0 && <SectionDivider label="Sales & Ops" collapsed={collapsed} />}
+
                 <ul className="space-y-0.5">
                     {main.map((item) => (
                         <NavItemRow
@@ -148,10 +165,12 @@ function NavItemRow({
     item,
     collapsed,
     onNavigate,
+    badge,
 }: {
     item: (typeof NAV_ITEMS)[number];
     collapsed: boolean;
     onNavigate?: () => void;
+    badge?: number;
 }) {
     const Icon = item.icon;
     return (
@@ -172,6 +191,14 @@ function NavItemRow({
             >
                 <Icon className="size-4 shrink-0" aria-hidden="true" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && badge !== undefined && (
+                    <span className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">
+                        {badge}
+                    </span>
+                )}
+                {collapsed && badge !== undefined && (
+                    <span className="absolute -mt-4 ml-4 inline-flex h-2 w-2 rounded-full bg-amber-400" aria-hidden="true" />
+                )}
             </NavLink>
         </li>
     );

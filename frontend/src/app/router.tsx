@@ -123,6 +123,11 @@ const PortalPreviewPage = lazy(() => import('@/pages/admin/PortalPreviewPage'));
 const CustomerInvoiceListPage = lazy(() => import('@/pages/sales/invoices/CustomerInvoiceListPage'));
 const CustomerInvoiceDetailPage = lazy(() => import('@/pages/sales/invoices/CustomerInvoiceDetailPage'));
 
+// Approvals
+const ApprovalsLayout = lazy(() => import('@/pages/approvals/ApprovalsLayout'));
+const ApprovalsInboxPage = lazy(() => import('@/pages/approvals/ApprovalsInboxPage'));
+const ApprovalHistoryPage = lazy(() => import('@/pages/approvals/ApprovalHistoryPage'));
+
 // Dev/utility
 const KitchenSinkPage = lazy(() => import('@/pages/_dev/KitchenSink'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
@@ -148,6 +153,14 @@ export const router = createBrowserRouter(
                 { path: 'inquiries/:id', element: <InquiryDetailPage /> },
                 { path: 'sales/invoices', element: <CustomerInvoiceListPage /> },
                 { path: 'sales/invoices/:id', element: <CustomerInvoiceDetailPage /> },
+                {
+                    path: 'approvals',
+                    element: <ApprovalsLayout />,
+                    children: [
+                        { index: true, element: <ApprovalsInboxPage /> },
+                        { path: 'history', element: <ApprovalHistoryPage /> },
+                    ],
+                },
                 { path: 'quotations', element: <QuotationsPage /> },
                 { path: 'quotations/:id', element: <QuotationDetailPage /> },
                 { path: 'orders', element: <OrdersPage /> },
