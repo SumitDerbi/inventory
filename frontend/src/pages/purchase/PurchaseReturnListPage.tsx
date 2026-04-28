@@ -5,7 +5,16 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
-import { Select } from '@/components/ui/FormField';
+import { FormField, Select, Textarea } from '@/components/ui/FormField';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/Toast';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -19,6 +28,7 @@ import {
     type ReturnReason,
 } from '@/mocks/purchase-returns';
 import { vendorById } from '@/mocks/vendors';
+import { grns } from '@/mocks/grns';
 
 export default function PurchaseReturnListPage() {
     const { push } = useToast();
@@ -26,6 +36,8 @@ export default function PurchaseReturnListPage() {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<'' | ReturnStatus>('');
     const [reason, setReason] = useState<'' | ReturnReason>('');
+    const [newOpen, setNewOpen] = useState(false);
+    const [form, setForm] = useState<{ grnId: string; reason: ReturnReason; notes: string }>({ grnId: '', reason: 'damaged', notes: '' });
 
     const rows = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -75,7 +87,7 @@ export default function PurchaseReturnListPage() {
                     </>
                 }
                 actions={
-                    <Button size="sm" onClick={() => push({ variant: 'info', title: 'New purchase return', description: 'Static UI — wiring deferred.' })}>
+                    <Button size="sm" onClick={() => setNewOpen(true)}>
                         <Plus className="size-4" aria-hidden="true" />
                         New return
                     </Button>
@@ -90,6 +102,50 @@ export default function PurchaseReturnListPage() {
                 emptyState={<div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500">No purchase returns match the filters.</div>}
             />
             <p className="mt-3 text-xs text-slate-500">Showing {rows.length} of {purchaseReturns.length} returns.</p>
+
+            <Dialog open={newOpen} onOpenChange={setNewOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>New purchase return</DialogTitle>
+                        <DialogDescription>Pick the GRN to reverse, choose the reason.</DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                        <div className="space-y-3">
+                            <FormField label="Source GRN" required>
+                                <Select value={form.grnId} onChange={(e) => setForm({ ...form, grnId: e.target.value })}>
+                                    <option value="">— Select —</option>
+                                    {grns.filter((g) => g.stage === 'posted').map((g) => (
+                                        <option key={g.id} value={g.id}>{g.number} · {vendorById(g.vendorId)?.name ?? ''}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
+                            <FormField label="Reason" required>
+                                <Select value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value as ReturnReason })}>
+                                    {Object.keys(RETURN_REASON_LABEL).map((r) => (
+                                        <option key={r} value={r}>{RETURN_REASON_LABEL[r as ReturnReason]}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
+                            <FormField label="Notes">
+                                <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                            </FormField>
+                        </div>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Button variant="ghost" size="sm" onClick={() => setNewOpen(false)}>Cancel</Button>
+                        <Button
+                            size="sm"
+                            disabled={!form.grnId}
+                            onClick={() => {
+                                setNewOpen(false);
+                                push({ variant: 'success', title: 'Return draft created (mock)' });
+                            }}
+                        >
+                            Create draft
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

@@ -5,7 +5,16 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
-import { Select } from '@/components/ui/FormField';
+import { FormField, Input, Select } from '@/components/ui/FormField';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/Toast';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -18,13 +27,16 @@ import {
     type VendorInvoice,
     type InvoiceStatus,
 } from '@/mocks/vendor-invoices';
-import { vendorById } from '@/mocks/vendors';
+import { vendorById, vendors } from '@/mocks/vendors';
+import { purchaseOrders } from '@/mocks/purchase-orders';
 
 export default function VendorInvoiceListPage() {
     const navigate = useNavigate();
     const { push } = useToast();
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<'' | InvoiceStatus>('');
+    const [newOpen, setNewOpen] = useState(false);
+    const [form, setForm] = useState({ vendorId: '', poId: '', number: '', invoiceDate: '', amount: '' });
 
     const aging = useMemo(() => payableAging(new Date()), []);
 
@@ -74,7 +86,7 @@ export default function VendorInvoiceListPage() {
                     </Select>
                 }
                 actions={
-                    <Button size="sm" onClick={() => push({ variant: 'info', title: 'Book invoice', description: 'Static UI — wiring deferred.' })}>
+                    <Button size="sm" onClick={() => setNewOpen(true)}>
                         <Plus className="size-4" aria-hidden="true" />
                         Book invoice
                     </Button>
@@ -89,6 +101,62 @@ export default function VendorInvoiceListPage() {
                 emptyState={<div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500">No invoices match the filters.</div>}
             />
             <p className="mt-3 text-xs text-slate-500">Showing {rows.length} of {vendorInvoices.length} invoices.</p>
+
+            <Dialog open={newOpen} onOpenChange={setNewOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Book vendor invoice</DialogTitle>
+                        <DialogDescription>Vendor, linked PO, vendor invoice number, date, total.</DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                        <div className="space-y-3">
+                            <FormField label="Vendor" required>
+                                <Select value={form.vendorId} onChange={(e) => setForm({ ...form, vendorId: e.target.value })}>
+                                    <option value="">— Select —</option>
+                                    {vendors.filter((v) => v.status !== 'blocked').map((v) => (
+                                        <option key={v.id} value={v.id}>{v.name}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
+                            <FormField label="Linked PO">
+                                <Select value={form.poId} onChange={(e) => setForm({ ...form, poId: e.target.value })}>
+                                    <option value="">— None —</option>
+                                    {purchaseOrders
+                                        .filter((p) => !form.vendorId || p.vendorId === form.vendorId)
+                                        .slice(0, 20)
+                                        .map((p) => (
+                                            <option key={p.id} value={p.id}>{p.number}</option>
+                                        ))}
+                                </Select>
+                            </FormField>
+                            <div className="grid grid-cols-2 gap-3">
+                                <FormField label="Invoice #" required>
+                                    <Input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="INV-..." />
+                                </FormField>
+                                <FormField label="Invoice date" required>
+                                    <Input type="date" value={form.invoiceDate} onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })} />
+                                </FormField>
+                            </div>
+                            <FormField label="Total amount" required>
+                                <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                            </FormField>
+                        </div>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Button variant="ghost" size="sm" onClick={() => setNewOpen(false)}>Cancel</Button>
+                        <Button
+                            size="sm"
+                            disabled={!form.vendorId || !form.number || !form.invoiceDate || !form.amount}
+                            onClick={() => {
+                                setNewOpen(false);
+                                push({ variant: 'success', title: 'Invoice booked (mock)', description: form.number });
+                            }}
+                        >
+                            Book
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

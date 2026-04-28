@@ -5,7 +5,15 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
-import { Select } from '@/components/ui/FormField';
+import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+} from '@/components/ui/Sheet';
 import { useToast } from '@/components/ui/Toast';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -26,6 +34,8 @@ export default function POListPage() {
     const [stage, setStage] = useState<'' | POStage>('');
     const [vendorId, setVendorId] = useState('');
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [newOpen, setNewOpen] = useState(false);
+    const [form, setForm] = useState({ vendorId: '', source: 'manual', sourceRef: '', expectedDate: '', terms: '' });
 
     const rows = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -149,7 +159,31 @@ export default function POListPage() {
                                 Approve ({selected.size})
                             </Button>
                         )}
-                        <Button size="sm" onClick={() => push({ variant: 'info', title: 'New PO', description: 'Static UI — wiring deferred.' })}>
+                        {selected.size > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    push({ variant: 'success', title: `${selected.size} PO(s) sent to vendor (mock)` });
+                                    setSelected(new Set());
+                                }}
+                            >
+                                Send ({selected.size})
+                            </Button>
+                        )}
+                        {selected.size > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    push({ variant: 'info', title: 'CSV export queued (mock)', description: `${selected.size} PO(s)` });
+                                    setSelected(new Set());
+                                }}
+                            >
+                                Export
+                            </Button>
+                        )}
+                        <Button size="sm" onClick={() => setNewOpen(true)}>
                             <Plus className="size-4" aria-hidden="true" />
                             New PO
                         </Button>
@@ -165,6 +199,59 @@ export default function POListPage() {
                 emptyState={<div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500">No purchase orders match the filters.</div>}
             />
             <p className="mt-3 text-xs text-slate-500">Showing {rows.length} of {purchaseOrders.length} POs.</p>
+
+            <Sheet open={newOpen} onOpenChange={setNewOpen}>
+                <SheetContent side="right" className="w-[520px] max-w-full overflow-y-auto">
+                    <SheetHeader>
+                        <SheetTitle>New purchase order</SheetTitle>
+                        <SheetDescription>Vendor, source link, expected delivery, terms.</SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-4 space-y-3">
+                        <FormField label="Vendor" required>
+                            <Select value={form.vendorId} onChange={(e) => setForm({ ...form, vendorId: e.target.value })}>
+                                <option value="">— Select —</option>
+                                {vendors.filter((v) => v.status === 'active').map((v) => (
+                                    <option key={v.id} value={v.id}>{v.name}</option>
+                                ))}
+                            </Select>
+                        </FormField>
+                        <div className="grid grid-cols-2 gap-3">
+                            <FormField label="Source">
+                                <Select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
+                                    <option value="manual">Manual</option>
+                                    <option value="pr">From PR</option>
+                                    <option value="rfq">From RFQ award</option>
+                                    <option value="so">Sales order</option>
+                                </Select>
+                            </FormField>
+                            <FormField label="Source ref">
+                                <Input value={form.sourceRef} onChange={(e) => setForm({ ...form, sourceRef: e.target.value })} placeholder="PR-/RFQ-/SO-" />
+                            </FormField>
+                        </div>
+                        <FormField label="Expected delivery" required>
+                            <Input type="date" value={form.expectedDate} onChange={(e) => setForm({ ...form, expectedDate: e.target.value })} />
+                        </FormField>
+                        <FormField label="Terms">
+                            <Textarea rows={3} value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} placeholder="Payment terms, freight, place of supply…" />
+                        </FormField>
+                        <p className="rounded-md bg-slate-50 p-2 text-xs text-slate-500">Line items added on draft detail page (mock).</p>
+                    </div>
+                    <SheetFooter>
+                        <Button variant="ghost" size="sm" onClick={() => setNewOpen(false)}>Cancel</Button>
+                        <Button
+                            size="sm"
+                            disabled={!form.vendorId || !form.expectedDate}
+                            onClick={() => {
+                                setNewOpen(false);
+                                const v = vendorById(form.vendorId);
+                                push({ variant: 'success', title: 'PO draft created (mock)', description: v?.name });
+                            }}
+                        >
+                            Save draft
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </>
     );
 }

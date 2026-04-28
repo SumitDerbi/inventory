@@ -5,7 +5,15 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
-import { Select } from '@/components/ui/FormField';
+import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+} from '@/components/ui/Sheet';
 import { useToast } from '@/components/ui/Toast';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -31,6 +39,8 @@ export default function PRListPage() {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<'' | PRStatus>('');
     const [source, setSource] = useState<'' | PurchaseRequisition['source']>('');
+    const [newOpen, setNewOpen] = useState(false);
+    const [form, setForm] = useState({ department: '', priority: 'normal', source: 'manual', requiredBy: '', notes: '' });
 
     const rows = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -89,7 +99,7 @@ export default function PRListPage() {
                     </>
                 }
                 actions={
-                    <Button size="sm" onClick={() => push({ variant: 'info', title: 'Create PR', description: 'Static UI — wiring deferred to API phase.' })}>
+                    <Button size="sm" onClick={() => setNewOpen(true)}>
                         <Plus className="size-4" aria-hidden="true" />
                         New PR
                     </Button>
@@ -105,6 +115,60 @@ export default function PRListPage() {
             />
 
             <p className="mt-3 text-xs text-slate-500">Showing {rows.length} of {purchaseRequisitions.length} requisitions.</p>
+
+            <Sheet open={newOpen} onOpenChange={setNewOpen}>
+                <SheetContent side="right" className="w-[480px] max-w-full overflow-y-auto">
+                    <SheetHeader>
+                        <SheetTitle>New purchase requisition</SheetTitle>
+                        <SheetDescription>Static mock — wiring deferred to API phase.</SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-4 space-y-3">
+                        <FormField label="Department" required>
+                            <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="Production / Service / Sales" />
+                        </FormField>
+                        <div className="grid grid-cols-2 gap-3">
+                            <FormField label="Source">
+                                <Select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
+                                    <option value="manual">Manual</option>
+                                    <option value="reorder">Reorder</option>
+                                    <option value="sales_order">Sales order</option>
+                                    <option value="project">Project</option>
+                                </Select>
+                            </FormField>
+                            <FormField label="Priority">
+                                <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                                    <option value="low">Low</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </Select>
+                            </FormField>
+                        </div>
+                        <FormField label="Required by">
+                            <Input type="date" value={form.requiredBy} onChange={(e) => setForm({ ...form, requiredBy: e.target.value })} />
+                        </FormField>
+                        <FormField label="Notes">
+                            <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                        </FormField>
+                        <p className="rounded-md bg-slate-50 p-2 text-xs text-slate-500">
+                            Line items can be added on the next step (deferred in mock).
+                        </p>
+                    </div>
+                    <SheetFooter>
+                        <Button variant="ghost" size="sm" onClick={() => setNewOpen(false)}>Cancel</Button>
+                        <Button
+                            size="sm"
+                            disabled={!form.department.trim()}
+                            onClick={() => {
+                                setNewOpen(false);
+                                push({ variant: 'success', title: 'PR draft created (mock)', description: form.department });
+                            }}
+                        >
+                            Save draft
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </>
     );
 }
