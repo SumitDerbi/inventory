@@ -389,7 +389,7 @@ export function searchAll(q: string, limit = 8): SearchResult[] {
 
     // Vendor payments
     for (const p of vendorPayments) {
-        const m = pick([{ field: 'number', value: p.number }, { field: 'ref', value: p.transactionRef ?? '' }], trimmed);
+        const m = pick([{ field: 'number', value: p.number }, { field: 'ref', value: p.bankRef ?? p.chequeNumber ?? '' }], trimmed);
         if (m) {
             out.push({
                 id: p.id,

@@ -76,6 +76,8 @@ const PurchaseReturnListPage = lazy(() => import('@/pages/purchase/PurchaseRetur
 const PurchaseReturnDetailPage = lazy(() => import('@/pages/purchase/PurchaseReturnDetailPage'));
 const VendorsListPage = lazy(() => import('@/pages/purchase/VendorsListPage'));
 const VendorDetailPage = lazy(() => import('@/pages/purchase/VendorDetailPage'));
+const PurchaseDashboardPage = lazy(() => import('@/pages/purchase/PurchaseDashboardPage'));
+const PurchaseAdminPage = lazy(() => import('@/pages/purchase/PurchaseAdminPage'));
 const JobsLayout = lazy(() => import('@/pages/jobs/JobsLayout'));
 const JobsListPage = lazy(() => import('@/pages/jobs/JobsListPage'));
 const JobDetailPage = lazy(() => import('@/pages/jobs/JobDetailPage'));
@@ -167,6 +169,8 @@ export const router = createBrowserRouter(
                         { path: 'returns/:id', element: <PurchaseReturnDetailPage /> },
                         { path: 'vendors', element: <VendorsListPage /> },
                         { path: 'vendors/:id', element: <VendorDetailPage /> },
+                        { path: 'dashboard', element: <PurchaseDashboardPage /> },
+                        { path: 'admin', element: <PurchaseAdminPage /> },
                     ],
                 },
                 {

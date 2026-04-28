@@ -288,7 +288,7 @@ export default function PODetailPage() {
                                 <div>
                                     <p className="text-xs uppercase text-slate-400">Vendor</p>
                                     <p className="font-medium">{v?.name}</p>
-                                    <p className="text-xs text-slate-500">{v?.gstNumber}</p>
+                                    <p className="text-xs text-slate-500">{v?.gstin}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs uppercase text-slate-400">Ship to</p>

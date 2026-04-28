@@ -91,7 +91,7 @@ export default function RFQDetailPage() {
                         )}
                         {rfq.status === 'quotes_received' && (
                             <Button
-                                variant={splitMode ? 'default' : 'outline'}
+                                variant={splitMode ? 'primary' : 'outline'}
                                 size="sm"
                                 onClick={() => setSplitMode((v) => !v)}
                             >

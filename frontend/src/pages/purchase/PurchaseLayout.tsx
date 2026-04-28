@@ -5,6 +5,7 @@ import { formatCompactINR } from '@/lib/format';
 import { purchaseSummary } from '@/mocks/purchase-summary';
 
 const TABS: Array<{ to: string; label: string; end?: boolean }> = [
+    { to: '/purchase/dashboard', label: 'Dashboard' },
     { to: '/purchase', label: 'Orders', end: true },
     { to: '/purchase/requisitions', label: 'Requisitions' },
     { to: '/purchase/rfqs', label: 'RFQs' },
@@ -13,6 +14,7 @@ const TABS: Array<{ to: string; label: string; end?: boolean }> = [
     { to: '/purchase/payments', label: 'Payments' },
     { to: '/purchase/returns', label: 'Returns' },
     { to: '/purchase/vendors', label: 'Vendors' },
+    { to: '/purchase/admin', label: 'Admin' },
 ];
 
 export default function PurchaseLayout() {
