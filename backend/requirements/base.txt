@@ -1,0 +1,10 @@
+# Base runtime — shared by dev and production
+Django>=5.2,<5.3
+djangorestframework>=3.15,<3.17
+djangorestframework-simplejwt>=5.3,<6
+django-filter>=24.3
+drf-spectacular>=0.27
+django-cors-headers>=4.4
+django-environ>=0.11
+PyMySQL>=1.1
+tablib[xlsx]>=3.6
