@@ -1,13 +1,26 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileText, Mail, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { useToast } from '@/components/ui/Toast';
+import { AuditDrawer, AuditTriggerButton } from '@/components/ui/AuditDrawer';
+import { mockActivity } from '@/mocks/activity';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/Dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/Sheet';
+import { FormField, Input, Textarea } from '@/components/ui/FormField';
 import { cn } from '@/lib/cn';
-import { formatINR, formatRelative } from '@/lib/format';
+import { formatINR, formatMoney, formatRelative } from '@/lib/format';
 import {
     poById,
     PO_STAGES,
@@ -39,6 +52,15 @@ export default function PODetailPage() {
     const { push } = useToast();
     const po = poById(id);
     const [tab, setTab] = useState<Tab>('items');
+    const [auditOpen, setAuditOpen] = useState(false);
+    const [amendOpen, setAmendOpen] = useState(false);
+    const [amendSummary, setAmendSummary] = useState('');
+    const [pdfOpen, setPdfOpen] = useState(false);
+    const [sendOpen, setSendOpen] = useState(false);
+    const [sendSubject, setSendSubject] = useState('');
+    const [sendRecipients, setSendRecipients] = useState('');
+    const [sendCc, setSendCc] = useState('');
+    const [sendBody, setSendBody] = useState('');
 
     const totals = useMemo(() => (po ? poTotals(po) : null), [po]);
     const linkedGrns = useMemo(() => (po ? grnsByPo(po.id) : []), [po]);
@@ -78,14 +100,35 @@ export default function PODetailPage() {
                             <ArrowLeft className="size-4" aria-hidden="true" />
                             Back
                         </Button>
+                        <AuditTriggerButton onClick={() => setAuditOpen(true)} />
+                        <Button variant="outline" size="sm" onClick={() => setPdfOpen(true)}>
+                            <FileText className="size-4" aria-hidden="true" />
+                            PDF preview
+                        </Button>
                         {po.stage === 'pending_approval' && (
                             <Button size="sm" onClick={() => push({ variant: 'success', title: 'PO approved (mock)' })}>
                                 Approve
                             </Button>
                         )}
                         {po.stage === 'approved' && (
-                            <Button size="sm" onClick={() => push({ variant: 'success', title: 'Sent to vendor (mock)' })}>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    setSendSubject(`${po.number} — purchase order`);
+                                    setSendRecipients(v?.contacts.find((c) => c.isPrimary)?.email ?? '');
+                                    setSendCc('');
+                                    setSendBody(`Dear ${v?.name ?? 'vendor'},\n\nPlease find attached purchase order ${po.number} for delivery by ${po.expectedDeliveryDate}.\n\nRegards,\nProcurement team`);
+                                    setSendOpen(true);
+                                }}
+                            >
+                                <Mail className="size-4" aria-hidden="true" />
                                 Send to vendor
+                            </Button>
+                        )}
+                        {(po.stage === 'sent' || po.stage === 'partially_received' || po.stage === 'received') && (
+                            <Button variant="outline" size="sm" onClick={() => { setAmendSummary(''); setAmendOpen(true); }}>
+                                <Pencil className="size-4" aria-hidden="true" />
+                                Amend
                             </Button>
                         )}
                     </>
@@ -199,6 +242,121 @@ export default function PODetailPage() {
                     {po.notes || <span className="italic text-slate-400">No notes.</span>}
                 </div>
             )}
+
+            {/* Amendment dialog */}
+            <Dialog open={amendOpen} onOpenChange={setAmendOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Amend purchase order</DialogTitle>
+                        <DialogDescription>
+                            Submitting an amendment freezes this PO and routes it for re-approval. Vendor will be notified.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                        <FormField label="Summary of changes">
+                            <Textarea rows={4} value={amendSummary} onChange={(e) => setAmendSummary(e.target.value)} placeholder="e.g. Updated qty on line 2 from 10 to 12 EA" />
+                        </FormField>
+                        <p className="text-xs text-slate-500">In a fully-wired flow a side-by-side diff editor of items / qty / price would render here.</p>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAmendOpen(false)}>Cancel</Button>
+                        <Button
+                            disabled={!amendSummary.trim()}
+                            onClick={() => {
+                                setAmendOpen(false);
+                                push({ variant: 'warning', title: 'Amendment submitted (mock)', description: 'PO frozen until re-approval.' });
+                            }}
+                        >
+                            Submit amendment
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* PDF preview drawer */}
+            <Sheet open={pdfOpen} onOpenChange={setPdfOpen}>
+                <SheetContent className="w-[640px] max-w-[95vw]" side="right">
+                    <SheetHeader>
+                        <SheetTitle>{po.number} — PDF preview</SheetTitle>
+                        <SheetDescription>Mock preview. The real PDF is generated server-side from the po_send template.</SheetDescription>
+                    </SheetHeader>
+                    <div className="flex-1 overflow-y-auto p-6 print:p-0">
+                        <div className="rounded-xl border border-slate-300 bg-white p-6 text-sm shadow">
+                            <h2 className="text-lg font-semibold">PURCHASE ORDER</h2>
+                            <p className="mt-1 font-mono text-xs text-slate-500">{po.number}</p>
+                            <div className="mt-4 grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-xs uppercase text-slate-400">Vendor</p>
+                                    <p className="font-medium">{v?.name}</p>
+                                    <p className="text-xs text-slate-500">{v?.gstNumber}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase text-slate-400">Ship to</p>
+                                    <p className="font-medium">{wh?.name}</p>
+                                </div>
+                            </div>
+                            <table className="mt-4 w-full text-xs">
+                                <thead className="border-b border-slate-300 text-left text-slate-500">
+                                    <tr><th className="py-1">Item</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Rate</th><th className="py-1 text-right">Value</th></tr>
+                                </thead>
+                                <tbody>
+                                    {po.items.map((it) => (
+                                        <tr key={it.id} className="border-b border-slate-100">
+                                            <td className="py-1">{it.sku} — {it.description}</td>
+                                            <td className="py-1 text-right">{it.qty} {it.uom}</td>
+                                            <td className="py-1 text-right">{formatMoney(it.unitPrice, po.currency)}</td>
+                                            <td className="py-1 text-right">{formatMoney(it.qty * it.unitPrice * (1 - it.discountPct / 100), po.currency)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <p className="mt-4 text-right font-semibold">Grand total: {formatMoney(totals.grandTotal, po.currency)}</p>
+                        </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+            {/* Send-to-vendor dialog */}
+            <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Send PO to vendor</DialogTitle>
+                        <DialogDescription>Uses the po_send email template. PDF auto-attached.</DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                        <FormField label="Recipients">
+                            <Input value={sendRecipients} onChange={(e) => setSendRecipients(e.target.value)} placeholder="vendor@example.com" />
+                        </FormField>
+                        <FormField label="CC">
+                            <Input value={sendCc} onChange={(e) => setSendCc(e.target.value)} placeholder="finance@yourco.com" />
+                        </FormField>
+                        <FormField label="Subject">
+                            <Input value={sendSubject} onChange={(e) => setSendSubject(e.target.value)} />
+                        </FormField>
+                        <FormField label="Body">
+                            <Textarea rows={6} value={sendBody} onChange={(e) => setSendBody(e.target.value)} />
+                        </FormField>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={() => {
+                                setSendOpen(false);
+                                push({ variant: 'success', title: 'PO sent (mock)', description: sendRecipients || '—' });
+                            }}
+                        >
+                            Send
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AuditDrawer
+                open={auditOpen}
+                onOpenChange={setAuditOpen}
+                title={`${po.number} · activity`}
+                entries={mockActivity(po.id, 'PO')}
+            />
         </>
     );
 }
@@ -224,8 +382,25 @@ function ItemsTable({
         { key: 'sku', header: 'SKU', cell: (i) => <span className="font-mono text-xs">{i.sku}</span> },
         { key: 'desc', header: 'Description', cell: (i) => <span className="text-sm text-slate-700">{i.description}</span> },
         { key: 'qty', header: 'Qty', align: 'right', cell: (i) => <span className="text-sm">{i.qty} {i.uom}</span> },
-        { key: 'recv', header: 'Received', align: 'right', cell: (i) => <span className="text-sm">{i.receivedQty}</span> },
-        { key: 'rate', header: 'Rate', align: 'right', cell: (i) => <span className="text-sm">{currency} {i.unitPrice.toLocaleString('en-IN')}</span> },
+        {
+            key: 'recv',
+            header: 'Received',
+            align: 'right',
+            cell: (i) => {
+                const pending = i.qty - i.receivedQty;
+                return (
+                    <div className="flex flex-col items-end">
+                        <span className="text-sm">{i.receivedQty} / {i.qty}</span>
+                        {pending > 0 ? (
+                            <Badge tone="amber" className="mt-0.5 text-[10px]">Pending {pending}</Badge>
+                        ) : (
+                            <Badge tone="emerald" className="mt-0.5 text-[10px]">Complete</Badge>
+                        )}
+                    </div>
+                );
+            },
+        },
+        { key: 'rate', header: 'Rate', align: 'right', cell: (i) => <span className="text-sm">{formatMoney(i.unitPrice, currency)}</span> },
         { key: 'gst', header: 'GST', align: 'right', cell: (i) => <span className="text-xs text-slate-500">{i.gstPct}%</span> },
         {
             key: 'val',
@@ -233,7 +408,7 @@ function ItemsTable({
             align: 'right',
             cell: (i) => {
                 const line = i.qty * i.unitPrice * (1 - i.discountPct / 100);
-                return <span className="text-sm font-medium">{currency} {line.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>;
+                return <span className="text-sm font-medium">{formatMoney(line, currency)}</span>;
             },
         },
     ];
@@ -241,20 +416,20 @@ function ItemsTable({
         <>
             <DataTable columns={cols} rows={items} rowKey={(i) => i.id} className="mb-4" />
             <div className="ml-auto w-full max-w-sm space-y-1.5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-                <Row label="Subtotal" value={`${currency} ${totals.subtotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`} />
-                {discount > 0 && <Row label="Discount" value={`− ${currency} ${discount.toLocaleString('en-IN')}`} />}
-                {freight > 0 && <Row label="Freight" value={`${currency} ${freight.toLocaleString('en-IN')}`} />}
-                {other > 0 && <Row label="Other charges" value={`${currency} ${other.toLocaleString('en-IN')}`} />}
+                <Row label="Subtotal" value={formatMoney(totals.subtotal, currency)} />
+                {discount > 0 && <Row label="Discount" value={`− ${formatMoney(discount, currency)}`} />}
+                {freight > 0 && <Row label="Freight" value={formatMoney(freight, currency)} />}
+                {other > 0 && <Row label="Other charges" value={formatMoney(other, currency)} />}
                 {isInterstate ? (
-                    <Row label="IGST" value={`${currency} ${totals.igst.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`} />
+                    <Row label="IGST" value={formatMoney(totals.igst, currency)} />
                 ) : (
                     <>
-                        <Row label="CGST" value={`${currency} ${totals.cgst.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`} />
-                        <Row label="SGST" value={`${currency} ${totals.sgst.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`} />
+                        <Row label="CGST" value={formatMoney(totals.cgst, currency)} />
+                        <Row label="SGST" value={formatMoney(totals.sgst, currency)} />
                     </>
                 )}
                 <div className="my-1 border-t border-slate-200" />
-                <Row label="Grand total" value={<span className="font-semibold">{currency} {totals.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>} bold />
+                <Row label="Grand total" value={<span className="font-semibold">{formatMoney(totals.grandTotal, currency)}</span>} bold />
                 {currency !== 'INR' && (
                     <Row label="In INR" value={<span className="text-xs text-slate-500">{formatINR(totals.grandTotalBaseCurrency)}</span>} />
                 )}

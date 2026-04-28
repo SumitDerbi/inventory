@@ -1,10 +1,13 @@
 import { useNavigate, useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { useToast } from '@/components/ui/Toast';
+import { AuditDrawer, AuditTriggerButton } from '@/components/ui/AuditDrawer';
+import { mockActivity } from '@/mocks/activity';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
     prById,
@@ -20,6 +23,7 @@ export default function PRDetailPage() {
     const { id = '' } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { push } = useToast();
+    const [auditOpen, setAuditOpen] = useState(false);
     const pr = prById(id);
     if (!pr) {
         return (
@@ -59,6 +63,7 @@ export default function PRDetailPage() {
                             <ArrowLeft className="size-4" aria-hidden="true" />
                             Back
                         </Button>
+                        <AuditTriggerButton onClick={() => setAuditOpen(true)} />
                         {pr.status === 'submitted' && (
                             <>
                                 <Button
@@ -158,6 +163,13 @@ export default function PRDetailPage() {
                     {pr.notes}
                 </p>
             )}
+
+            <AuditDrawer
+                open={auditOpen}
+                onOpenChange={setAuditOpen}
+                title={`${pr.number} · activity`}
+                entries={mockActivity(pr.id, 'PR')}
+            />
         </>
     );
 }

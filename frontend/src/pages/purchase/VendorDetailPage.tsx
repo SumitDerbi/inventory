@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { useToast } from '@/components/ui/Toast';
+import { AuditDrawer, AuditTriggerButton } from '@/components/ui/AuditDrawer';
+import { mockActivity } from '@/mocks/activity';
 import { cn } from '@/lib/cn';
 import { formatINR, formatRelative, formatCompactINR } from '@/lib/format';
 import {
@@ -19,7 +22,7 @@ import { vendorInvoices, INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from '@/moc
 import { vendorPayments, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_TONE, PAYMENT_MODE_LABEL } from '@/mocks/vendor-payments';
 import { purchaseReturns, RETURN_STATUS_LABEL, RETURN_STATUS_TONE } from '@/mocks/purchase-returns';
 
-type Tab = 'overview' | 'performance' | 'pos' | 'invoices' | 'payments' | 'returns' | 'contacts' | 'bank';
+type Tab = 'overview' | 'performance' | 'pos' | 'invoices' | 'payments' | 'returns' | 'contacts' | 'bank' | 'attachments';
 
 const TABS: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Overview' },
@@ -30,6 +33,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
     { id: 'returns', label: 'Returns' },
     { id: 'contacts', label: 'Contacts' },
     { id: 'bank', label: 'Bank' },
+    { id: 'attachments', label: 'Attachments' },
 ];
 
 export default function VendorDetailPage() {
@@ -37,6 +41,8 @@ export default function VendorDetailPage() {
     const navigate = useNavigate();
     const v = vendorById(id);
     const [tab, setTab] = useState<Tab>('overview');
+    const [auditOpen, setAuditOpen] = useState(false);
+    const { push } = useToast();
 
     const vendorPOs = useMemo(
         () => purchaseOrders.filter((p) => p.vendorId === id),
@@ -79,10 +85,13 @@ export default function VendorDetailPage() {
                     { label: v.code },
                 ]}
                 actions={
-                    <Button variant="outline" size="sm" onClick={() => navigate('/purchase/vendors')}>
-                        <ArrowLeft className="size-4" aria-hidden="true" />
-                        Back
-                    </Button>
+                    <>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/purchase/vendors')}>
+                            <ArrowLeft className="size-4" aria-hidden="true" />
+                            Back
+                        </Button>
+                        <AuditTriggerButton onClick={() => setAuditOpen(true)} />
+                    </>
                 }
             />
 
@@ -126,6 +135,23 @@ export default function VendorDetailPage() {
             {tab === 'returns' && <ReturnsTab returns={vendorReturns} navigate={navigate} />}
             {tab === 'contacts' && <ContactsTab v={v} />}
             {tab === 'bank' && <BankTab v={v} />}
+            {tab === 'attachments' && (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                    <Paperclip className="mx-auto mb-2 size-6 text-slate-400" aria-hidden="true" />
+                    <p className="font-medium text-slate-700">Vendor agreements, MSME cert, GST cert, NDA</p>
+                    <p className="mt-1 text-xs">Drag & drop or click to upload (mock).</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => push({ variant: 'info', title: 'Upload mock', description: 'Wiring deferred to API phase.' })}>
+                        Add attachment
+                    </Button>
+                </div>
+            )}
+
+            <AuditDrawer
+                open={auditOpen}
+                onOpenChange={setAuditOpen}
+                title={`${v.code} · activity`}
+                entries={mockActivity(v.id, 'Vendor')}
+            />
         </>
     );
 }

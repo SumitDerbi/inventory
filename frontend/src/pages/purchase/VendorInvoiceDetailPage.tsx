@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle2, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/Dialog';
 import { FormField, Textarea } from '@/components/ui/FormField';
 import { useToast } from '@/components/ui/Toast';
+import { AuditDrawer, AuditTriggerButton } from '@/components/ui/AuditDrawer';
+import { mockActivity } from '@/mocks/activity';
 import { cn } from '@/lib/cn';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -30,12 +32,13 @@ import { vendorById } from '@/mocks/vendors';
 import { poById } from '@/mocks/purchase-orders';
 import { vendorPayments, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_TONE, PAYMENT_MODE_LABEL } from '@/mocks/vendor-payments';
 
-type Tab = 'lines' | 'match' | 'tax' | 'payments';
+type Tab = 'lines' | 'match' | 'tax' | 'payments' | 'attachments';
 const TABS: Array<{ id: Tab; label: string }> = [
     { id: 'lines', label: 'Lines' },
     { id: 'match', label: '3-way match' },
     { id: 'tax', label: 'Tax & TDS' },
     { id: 'payments', label: 'Payments' },
+    { id: 'attachments', label: 'Attachments' },
 ];
 
 export default function VendorInvoiceDetailPage() {
@@ -46,6 +49,7 @@ export default function VendorInvoiceDetailPage() {
     const [tab, setTab] = useState<Tab>('lines');
     const [overrideOpen, setOverrideOpen] = useState(false);
     const [overrideReason, setOverrideReason] = useState('');
+    const [auditOpen, setAuditOpen] = useState(false);
 
     const linkedPayments = useMemo(
         () => (inv ? vendorPayments.filter((p) => p.invoiceIds.includes(inv.id)) : []),
@@ -86,6 +90,7 @@ export default function VendorInvoiceDetailPage() {
                             <ArrowLeft className="size-4" aria-hidden="true" />
                             Back
                         </Button>
+                        <AuditTriggerButton onClick={() => setAuditOpen(true)} />
                         {hasMismatch && inv.status !== 'paid' && (
                             <Button variant="outline" size="sm" onClick={() => setOverrideOpen(true)}>
                                 Override match
@@ -165,6 +170,16 @@ export default function VendorInvoiceDetailPage() {
                     </ul>
                 )
             )}
+            {tab === 'attachments' && (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                    <Paperclip className="mx-auto mb-2 size-6 text-slate-400" aria-hidden="true" />
+                    <p className="font-medium text-slate-700">Scanned bill PDF + supporting documents</p>
+                    <p className="mt-1 text-xs">Drag & drop or click to upload (mock).</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => push({ variant: 'info', title: 'Upload mock', description: 'Wiring deferred to API phase.' })}>
+                        Add attachment
+                    </Button>
+                </div>
+            )}
 
             <Dialog open={overrideOpen} onOpenChange={setOverrideOpen}>
                 <DialogContent className="sm:max-w-md">
@@ -196,6 +211,13 @@ export default function VendorInvoiceDetailPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AuditDrawer
+                open={auditOpen}
+                onOpenChange={setAuditOpen}
+                title={`${inv.internalRef} · activity`}
+                entries={mockActivity(inv.id, 'Invoice')}
+            />
         </>
     );
 }

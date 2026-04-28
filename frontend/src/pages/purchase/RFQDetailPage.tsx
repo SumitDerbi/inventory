@@ -1,10 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Trophy, Zap } from 'lucide-react';
+import { ArrowLeft, Trophy, Zap, Mail, Split } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
+import { AuditDrawer, AuditTriggerButton } from '@/components/ui/AuditDrawer';
+import { mockActivity } from '@/mocks/activity';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/Dialog';
+import { FormField, Input, Textarea } from '@/components/ui/FormField';
 import { cn } from '@/lib/cn';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -21,6 +33,13 @@ export default function RFQDetailPage() {
     const { push } = useToast();
     const rfq = rfqById(id);
     const [awardedVendor, setAwardedVendor] = useState<string | null>(null);
+    const [splitMode, setSplitMode] = useState(false);
+    const [splitMap, setSplitMap] = useState<Record<string, string>>({}); // itemId -> vendorId
+    const [auditOpen, setAuditOpen] = useState(false);
+    const [emailOpen, setEmailOpen] = useState(false);
+    const [emailSubject, setEmailSubject] = useState('');
+    const [emailBody, setEmailBody] = useState('');
+    const [buyerNotes, setBuyerNotes] = useState<Record<string, string>>({}); // itemId -> note
 
     const summary = useMemo(() => (rfq ? compareQuotes(rfq) : []), [rfq]);
 
@@ -51,10 +70,36 @@ export default function RFQDetailPage() {
                     { label: rfq.number },
                 ]}
                 actions={
-                    <Button variant="outline" size="sm" onClick={() => navigate('/purchase/rfqs')}>
-                        <ArrowLeft className="size-4" aria-hidden="true" />
-                        Back
-                    </Button>
+                    <>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/purchase/rfqs')}>
+                            <ArrowLeft className="size-4" aria-hidden="true" />
+                            Back
+                        </Button>
+                        <AuditTriggerButton onClick={() => setAuditOpen(true)} />
+                        {rfq.status === 'draft' && (
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    setEmailSubject(`RFQ ${rfq.number} — quotation request`);
+                                    setEmailBody(`Dear vendor,\n\nRequest for quote for the items listed in ${rfq.number}. Closing ${rfq.closingDate}.\n\nRegards,\nProcurement team`);
+                                    setEmailOpen(true);
+                                }}
+                            >
+                                <Mail className="size-4" aria-hidden="true" />
+                                Send to vendors
+                            </Button>
+                        )}
+                        {rfq.status === 'quotes_received' && (
+                            <Button
+                                variant={splitMode ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setSplitMode((v) => !v)}
+                            >
+                                <Split className="size-4" aria-hidden="true" />
+                                {splitMode ? 'Exit split mode' : 'Award split'}
+                            </Button>
+                        )}
+                    </>
                 }
             />
 
@@ -190,6 +235,95 @@ export default function RFQDetailPage() {
                     {rfq.notes}
                 </p>
             )}
+
+            {splitMode && (
+                <section className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800">
+                    <p className="font-semibold">Award split mode</p>
+                    <p className="mt-1">Pick a winning vendor per line below; on confirm, one draft PO will be created per awarded vendor.</p>
+                    <div className="mt-3 space-y-2">
+                        {rfq.items.map((it) => {
+                            const candidates = rfq.quotes
+                                .map((q) => ({ vendorId: q.vendorId, line: q.items.find((qi) => qi.rfqItemId === it.id) }))
+                                .filter((c) => c.line);
+                            return (
+                                <div key={it.id} className="flex flex-wrap items-center gap-2 rounded-md bg-white/70 p-2">
+                                    <span className="min-w-32 font-mono text-xs text-slate-600">{it.sku}</span>
+                                    <span className="flex-1 text-xs text-slate-700">{it.description}</span>
+                                    <select
+                                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                                        value={splitMap[it.id] ?? ''}
+                                        onChange={(e) => setSplitMap((m) => ({ ...m, [it.id]: e.target.value }))}
+                                    >
+                                        <option value="">— pick vendor —</option>
+                                        {candidates.map((c) => (
+                                            <option key={c.vendorId} value={c.vendorId}>
+                                                {vendorById(c.vendorId)?.name} · {formatINR(c.line!.unitPrice)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        placeholder="Buyer note"
+                                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                                        value={buyerNotes[it.id] ?? ''}
+                                        onChange={(e) => setBuyerNotes((m) => ({ ...m, [it.id]: e.target.value }))}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                        <Button
+                            size="sm"
+                            onClick={() => {
+                                const winners = new Set(Object.values(splitMap).filter(Boolean));
+                                push({
+                                    variant: 'success',
+                                    title: 'Award split saved (mock)',
+                                    description: `${winners.size} draft PO${winners.size === 1 ? '' : 's'} would be created.`,
+                                });
+                                setSplitMode(false);
+                            }}
+                        >
+                            Confirm split award
+                        </Button>
+                    </div>
+                </section>
+            )}
+
+            <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Send RFQ to invited vendors</DialogTitle>
+                        <DialogDescription>Uses the rfq_invite email template. Recipients: {rfq.invitedVendorIds.length} vendor(s).</DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                        <FormField label="Subject">
+                            <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+                        </FormField>
+                        <FormField label="Body">
+                            <Textarea rows={6} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+                        </FormField>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={() => {
+                                setEmailOpen(false);
+                                push({ variant: 'success', title: 'RFQ sent (mock)', description: `${rfq.invitedVendorIds.length} email(s) queued.` });
+                            }}
+                        >
+                            Send
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AuditDrawer
+                open={auditOpen}
+                onOpenChange={setAuditOpen}
+                title={`${rfq.number} · activity`}
+                entries={mockActivity(rfq.id, 'RFQ')}
+            />
         </>
     );
 }

@@ -38,6 +38,30 @@ export const formatNumber = (value: number | string | null | undefined) => {
 };
 
 /**
+ * Currency-aware money formatter. Falls back to INR when currency is missing.
+ * Shown like "USD 1,234.56" for non-INR codes; INR keeps the ₹ glyph.
+ */
+export const formatMoney = (
+    value: number | string | null | undefined,
+    currency: string | null | undefined = 'INR',
+) => {
+    if (value === null || value === undefined || value === '') return '—';
+    const n = typeof value === 'string' ? Number(value) : value;
+    if (Number.isNaN(n)) return '—';
+    const code = (currency ?? 'INR').toUpperCase();
+    if (code === 'INR') return INR.format(n);
+    try {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: code,
+            maximumFractionDigits: 2,
+        }).format(n);
+    } catch {
+        return `${code} ${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n)}`;
+    }
+};
+
+/**
  * Relative time formatter. Accepts `Date` or ISO string.
  * Uses `Intl.RelativeTimeFormat` to avoid pulling in date-fns for a single helper.
  */

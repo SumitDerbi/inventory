@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Camera, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -14,6 +14,8 @@ import {
     DialogDescription,
 } from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/Toast';
+import { AuditDrawer, AuditTriggerButton } from '@/components/ui/AuditDrawer';
+import { mockActivity } from '@/mocks/activity';
 import { cn } from '@/lib/cn';
 import { formatRelative } from '@/lib/format';
 import {
@@ -37,6 +39,9 @@ export default function GRNDetailPage() {
         () => Object.fromEntries((grn?.items ?? []).map((i) => [i.id, i.qcDecision])),
     );
     const [postOpen, setPostOpen] = useState(false);
+    const [auditOpen, setAuditOpen] = useState(false);
+    const [directOpen, setDirectOpen] = useState(false);
+    const [tab, setTab] = useState<'items' | 'attachments'>('items');
 
     const itemsWithLocalDecision = useMemo(
         () => (grn?.items ?? []).map((i) => ({ ...i, qcDecision: decisions[i.id] ?? i.qcDecision })),
@@ -78,6 +83,10 @@ export default function GRNDetailPage() {
                             <ArrowLeft className="size-4" aria-hidden="true" />
                             Back
                         </Button>
+                        <AuditTriggerButton onClick={() => setAuditOpen(true)} />
+                        <Button variant="outline" size="sm" onClick={() => setDirectOpen(true)}>
+                            Direct GRN
+                        </Button>
                         {grn.stage === 'qc_pending' && (
                             <Button
                                 size="sm"
@@ -107,6 +116,29 @@ export default function GRNDetailPage() {
             </section>
 
             <h3 className="mb-2 text-sm font-semibold text-slate-700">Items & QC</h3>
+            <div role="tablist" aria-label="GRN sections" className="mb-3 flex gap-1 border-b border-slate-200">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === 'items'}
+                    onClick={() => setTab('items')}
+                    className={cn('relative px-3 py-2 text-sm font-medium', tab === 'items' ? 'text-primary' : 'text-slate-500')}
+                >
+                    Items
+                    {tab === 'items' && <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />}
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === 'attachments'}
+                    onClick={() => setTab('attachments')}
+                    className={cn('relative px-3 py-2 text-sm font-medium', tab === 'attachments' ? 'text-primary' : 'text-slate-500')}
+                >
+                    Attachments
+                    {tab === 'attachments' && <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />}
+                </button>
+            </div>
+            {tab === 'items' && (
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                 <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -141,6 +173,18 @@ export default function GRNDetailPage() {
                     </tbody>
                 </table>
             </div>
+            )}
+            {tab === 'attachments' && (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                    <Paperclip className="mx-auto mb-2 size-6 text-slate-400" aria-hidden="true" />
+                    <p className="font-medium text-slate-700">Delivery challan, packing list, e-way bill</p>
+                    <p className="mt-1 text-xs">Drag & drop or click to upload (mock).</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => push({ variant: 'info', title: 'Upload mock', description: 'Wiring deferred to API phase.' })}>
+                        <Camera className="size-4" aria-hidden="true" />
+                        Add attachment
+                    </Button>
+                </div>
+            )}
 
             {grn.notes && (
                 <p className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-sm italic text-slate-600">
@@ -175,6 +219,29 @@ export default function GRNDetailPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={directOpen} onOpenChange={setDirectOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Direct GRN (no PO)</DialogTitle>
+                        <DialogDescription>
+                            Direct GRNs are admin-only and disabled in mock mode. In production this requires the
+                            <code className="mx-1 rounded bg-slate-100 px-1 text-xs">grn.allow_direct</code>
+                            feature flag and is audit-logged with a mandatory reason.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button onClick={() => setDirectOpen(false)}>Got it</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AuditDrawer
+                open={auditOpen}
+                onOpenChange={setAuditOpen}
+                title={`${grn.number} · activity`}
+                entries={mockActivity(grn.id, 'GRN')}
+            />
         </>
     );
 }
