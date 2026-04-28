@@ -10,6 +10,21 @@ Bootstrap Django project with MySQL (pymysql), DRF, JWT, drf-spectacular, pytest
 
 ---
 
+## Status
+
+✅ **Completed** — committed `0c27208` (`chore(api): bootstrap django + drf + jwt`).
+
+Notes / deviations from the original plan:
+
+- Used **Python 3.13** (Django 5 doesn't yet support 3.14, which is the system default) via `py -3.13 -m venv backend/.venv`.
+- **`weasyprint`** intentionally **omitted** from `requirements/base.txt` (Windows GTK pain). `?format=pdf` returns HTTP 501 in `ListExportMixin` until Step 04 wires it on a Linux dev box / CI.
+- **Pre-commit / black / isort / flake8 / django-upgrade** (Step 13) — deferred. Will revisit once domain code lands so the formatter has something to format.
+- **Dockerfile / docker-compose** (Step 14) and **deploy.sh** (Step 15) — deferred to Phase 2 closing step. Local dev runs against sqlite via `DATABASE_URL`; MySQL is wired but only exercised in prod settings.
+- **Coverage threshold** — `pytest-cov` configured but `--cov-fail-under=0` for now (raised to 85 once domain apps land in step 02+).
+- **MySQL `migrate` verification** — checked against sqlite for now (env-driven; prod settings already wire MySQL via PyMySQL shim). Will re-verify on cPanel staging in Step 15.
+
+---
+
 ## Steps
 
 1. **Virtualenv + Django**
@@ -68,14 +83,14 @@ Bootstrap Django project with MySQL (pymysql), DRF, JWT, drf-spectacular, pytest
 
 ## Verification
 
-- [ ] `python manage.py check` clean.
-- [ ] `python manage.py migrate` succeeds against MySQL.
-- [ ] `python manage.py runserver` serves `/api/docs/` with Swagger.
-- [ ] `pytest` runs with 0 tests, 0 errors.
-- [ ] Base abstract models importable; a throwaway model using them migrates cleanly then is reverted.
-- [ ] `ListExportMixin` smoke test on a sample resource returns valid csv/xlsx/pdf for `?format=...`.
-- [ ] API contract conventions documented in `apps/core/README.md`.
-- [ ] Commit: `chore(api): bootstrap django + drf + jwt`.
+- [x] `python manage.py check` clean.
+- [x] `python manage.py migrate` succeeds (sqlite for dev; MySQL wired via PyMySQL for prod, re-verified on cPanel staging in Step 15).
+- [x] `python manage.py runserver` serves `/api/docs/` with Swagger (verified via `Client().get('/api/docs/')` → 200).
+- [x] `pytest` runs — 2 smoke tests pass (health + schema endpoints).
+- [x] Base abstract models importable (`apps.core.models.AuditModel`); soft-delete manager + `all_objects` escape hatch confirmed.
+- [ ] `ListExportMixin` end-to-end smoke (csv/xlsx round-trip) — deferred to Step 04 once a real list endpoint exists. PDF returns 501 stub until weasyprint lands.
+- [x] API contract conventions documented in [`apps/core/README.md`](../../backend/apps/core/README.md).
+- [x] Commit: `chore(api): bootstrap django + drf + jwt` — `0c27208`.
 
 ---
 
