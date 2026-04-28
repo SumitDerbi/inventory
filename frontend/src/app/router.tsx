@@ -96,6 +96,29 @@ const NotificationCenterPage = lazy(
     () => import('@/pages/admin/NotificationCenterPage'),
 );
 
+// Portal
+const PortalShell = lazy(() => import('@/layouts/PortalShell'));
+const PortalAuthGuard = lazy(() =>
+    import('@/app/portal-context').then((m) => ({ default: m.PortalAuthGuard })),
+);
+const PortalLoginPage = lazy(() => import('@/pages/portal/PortalLoginPage'));
+const PortalForgotPage = lazy(() => import('@/pages/portal/PortalForgotPage'));
+const PortalResetPage = lazy(() => import('@/pages/portal/PortalResetPage'));
+const PortalHomePage = lazy(() => import('@/pages/portal/PortalHomePage'));
+const PortalOrdersListPage = lazy(() => import('@/pages/portal/PortalOrdersListPage'));
+const PortalOrderDetailPage = lazy(() => import('@/pages/portal/PortalOrderDetailPage'));
+const PortalQuotationsListPage = lazy(() => import('@/pages/portal/PortalQuotationsListPage'));
+const PortalQuotationDetailPage = lazy(() => import('@/pages/portal/PortalQuotationDetailPage'));
+const PortalDispatchesPage = lazy(() => import('@/pages/portal/PortalDispatchesPage'));
+const PortalJobsPage = lazy(() => import('@/pages/portal/PortalJobsPage'));
+const PortalDocumentsPage = lazy(() => import('@/pages/portal/PortalDocumentsPage'));
+const PortalTicketsListPage = lazy(() => import('@/pages/portal/PortalTicketsListPage'));
+const PortalTicketNewPage = lazy(() => import('@/pages/portal/PortalTicketNewPage'));
+const PortalTicketDetailPage = lazy(() => import('@/pages/portal/PortalTicketDetailPage'));
+const PortalNotificationsPage = lazy(() => import('@/pages/portal/PortalNotificationsPage'));
+const PortalProfilePage = lazy(() => import('@/pages/portal/PortalProfilePage'));
+const PortalPreviewPage = lazy(() => import('@/pages/admin/PortalPreviewPage'));
+
 // Dev/utility
 const KitchenSinkPage = lazy(() => import('@/pages/_dev/KitchenSink'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
@@ -191,6 +214,34 @@ export const router = createBrowserRouter(
                 { path: 'settings', element: <SettingsPage /> },
                 { path: 'profile', element: <ProfilePage /> },
                 { path: 'notifications', element: <NotificationCenterPage /> },
+                { path: 'portal-preview', element: <PortalPreviewPage /> },
+            ],
+        },
+        // Customer portal
+        { path: '/portal/login', element: <PortalLoginPage /> },
+        { path: '/portal/forgot', element: <PortalForgotPage /> },
+        { path: '/portal/reset/:token', element: <PortalResetPage /> },
+        {
+            path: '/portal',
+            element: (
+                <PortalAuthGuard>
+                    <PortalShell />
+                </PortalAuthGuard>
+            ),
+            children: [
+                { index: true, element: <PortalHomePage /> },
+                { path: 'orders', element: <PortalOrdersListPage /> },
+                { path: 'orders/:id', element: <PortalOrderDetailPage /> },
+                { path: 'quotations', element: <PortalQuotationsListPage /> },
+                { path: 'quotations/:id', element: <PortalQuotationDetailPage /> },
+                { path: 'dispatches', element: <PortalDispatchesPage /> },
+                { path: 'jobs', element: <PortalJobsPage /> },
+                { path: 'documents', element: <PortalDocumentsPage /> },
+                { path: 'tickets', element: <PortalTicketsListPage /> },
+                { path: 'tickets/new', element: <PortalTicketNewPage /> },
+                { path: 'tickets/:id', element: <PortalTicketDetailPage /> },
+                { path: 'notifications', element: <PortalNotificationsPage /> },
+                { path: 'profile', element: <PortalProfilePage /> },
             ],
         },
         { path: '*', element: <NotFoundPage /> },

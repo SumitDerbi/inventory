@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { LucideProps } from 'lucide-react';
 import {
     Building2,
+    Eye,
     FileText,
     FileSpreadsheet,
     Hammer,
@@ -38,6 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
     { label: 'Documents', to: '/documents', icon: FileSpreadsheet, section: 'main' },
     { label: 'Reports', to: '/reports', icon: TrendingUp, section: 'main' },
     { label: 'Users', to: '/users', icon: Users, section: 'admin' },
+    { label: 'Portal preview', to: '/portal-preview', icon: Eye, section: 'admin' },
     { label: 'Settings', to: '/settings', icon: Settings, section: 'admin' },
 ];
 
