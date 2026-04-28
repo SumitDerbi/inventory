@@ -73,6 +73,7 @@ const VendorInvoiceListPage = lazy(() => import('@/pages/purchase/VendorInvoiceL
 const VendorInvoiceDetailPage = lazy(() => import('@/pages/purchase/VendorInvoiceDetailPage'));
 const PaymentListPage = lazy(() => import('@/pages/purchase/PaymentListPage'));
 const PurchaseReturnListPage = lazy(() => import('@/pages/purchase/PurchaseReturnListPage'));
+const PurchaseReturnDetailPage = lazy(() => import('@/pages/purchase/PurchaseReturnDetailPage'));
 const VendorsListPage = lazy(() => import('@/pages/purchase/VendorsListPage'));
 const VendorDetailPage = lazy(() => import('@/pages/purchase/VendorDetailPage'));
 const JobsLayout = lazy(() => import('@/pages/jobs/JobsLayout'));
@@ -163,6 +164,7 @@ export const router = createBrowserRouter(
                         { path: 'invoices/:id', element: <VendorInvoiceDetailPage /> },
                         { path: 'payments', element: <PaymentListPage /> },
                         { path: 'returns', element: <PurchaseReturnListPage /> },
+                        { path: 'returns/:id', element: <PurchaseReturnDetailPage /> },
                         { path: 'vendors', element: <VendorsListPage /> },
                         { path: 'vendors/:id', element: <VendorDetailPage /> },
                     ],

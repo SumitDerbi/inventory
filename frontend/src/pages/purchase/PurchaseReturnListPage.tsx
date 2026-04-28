@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -21,6 +22,7 @@ import { vendorById } from '@/mocks/vendors';
 
 export default function PurchaseReturnListPage() {
     const { push } = useToast();
+    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<'' | ReturnStatus>('');
     const [reason, setReason] = useState<'' | ReturnReason>('');
@@ -84,6 +86,7 @@ export default function PurchaseReturnListPage() {
                 columns={cols}
                 rows={rows}
                 rowKey={(r) => r.id}
+                onRowClick={(r) => navigate(`/purchase/returns/${r.id}`)}
                 emptyState={<div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500">No purchase returns match the filters.</div>}
             />
             <p className="mt-3 text-xs text-slate-500">Showing {rows.length} of {purchaseReturns.length} returns.</p>
