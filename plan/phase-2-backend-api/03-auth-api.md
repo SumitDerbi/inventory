@@ -1,4 +1,6 @@
-# Step 03 — Auth API (JWT, Users, Roles)
+# Step 03 — Auth API (JWT, Users, Roles) ✅
+
+> Status: **DONE** (commit `909c108`) — 24 auth tests + 26 total pass; all 17 endpoints live at `/api/auth/*`, `/api/users/`, `/api/roles/`, `/api/permissions/`.
 
 > Before this: [02-models-migrations.md](./02-models-migrations.md)
 
