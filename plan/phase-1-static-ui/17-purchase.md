@@ -277,16 +277,16 @@ Mocks: `frontend/src/mocks/admin-purchase.ts` with 4 sample rules + default tole
 
 ## Verification (additional)
 
-- [ ] PO Amendment flow freezes the PO and unblocks only after approval action.
-- [ ] PO PDF preview + email-send dialog uses the `po_send` template; recipients default to the vendor primary contact.
+- [x] PO Amendment flow freezes the PO and unblocks only after approval action.
+- [x] PO PDF preview + email-send dialog uses the `po_send` template; recipients default to the vendor primary contact.
 - [ ] CGST/SGST/IGST split derives correctly when vendor state == warehouse state vs not.
 - [ ] GRN mobile view at 360 px keeps every action reachable without horizontal scroll.
 - [ ] Vendor performance tab renders even when vendor has zero POs (no NaN, no division-by-zero).
 - [ ] Aging buckets on Invoices + Payments match dashboard KPI.
-- [ ] Award-split RFQ creates one draft PO per awarded vendor with correct line allocation.
-- [ ] All money formatting honours per-document currency.
-- [ ] Audit drawer accessible from every detail page.
-- [ ] Approval rules + tolerance settings screens render and persist to the mock store.
+- [x] Award-split RFQ creates one draft PO per awarded vendor with correct line allocation.
+- [x] All money formatting honours per-document currency.
+- [x] Audit drawer accessible from every detail page.
+- [x] Approval rules + tolerance settings screens render and persist to the mock store.
 
 ---
 
@@ -299,8 +299,8 @@ Mocks: `frontend/src/mocks/admin-purchase.ts` with 4 sample rules + default tole
 - [x] GRN "Submit QC" disabled until every row has a non-pending QC status.
 - [x] Invoice 3-way match highlights price + qty variance in red.
 - [ ] Payment allocation cannot exceed selected invoices' outstanding total.
-- [ ] Reorder "Raise PO" + SO MRP "Raise PR" navigate to the new PR form with prefilled source.
-- [ ] Global search returns vendor / PO / invoice hits.
+- [x] Reorder "Raise PO" + SO MRP "Raise PR" navigate to the new PR form with prefilled source.
+- [x] Global search returns vendor / PO / invoice hits.
 - [x] `npm run lint` clean.
 - [x] `npm run build` clean; per-page chunks budgeted ≤ 25 kB pre-gzip.
 - [ ] Lighthouse a11y ≥ 90 on `/purchase/orders` and `/purchase/orders/:id`.
