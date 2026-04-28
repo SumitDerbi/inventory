@@ -119,6 +119,10 @@ const PortalNotificationsPage = lazy(() => import('@/pages/portal/PortalNotifica
 const PortalProfilePage = lazy(() => import('@/pages/portal/PortalProfilePage'));
 const PortalPreviewPage = lazy(() => import('@/pages/admin/PortalPreviewPage'));
 
+// Sales invoices
+const CustomerInvoiceListPage = lazy(() => import('@/pages/sales/invoices/CustomerInvoiceListPage'));
+const CustomerInvoiceDetailPage = lazy(() => import('@/pages/sales/invoices/CustomerInvoiceDetailPage'));
+
 // Dev/utility
 const KitchenSinkPage = lazy(() => import('@/pages/_dev/KitchenSink'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
@@ -142,6 +146,8 @@ export const router = createBrowserRouter(
                 { path: 'dashboard', element: <DashboardPage /> },
                 { path: 'inquiries', element: <InquiriesPage /> },
                 { path: 'inquiries/:id', element: <InquiryDetailPage /> },
+                { path: 'sales/invoices', element: <CustomerInvoiceListPage /> },
+                { path: 'sales/invoices/:id', element: <CustomerInvoiceDetailPage /> },
                 { path: 'quotations', element: <QuotationsPage /> },
                 { path: 'quotations/:id', element: <QuotationDetailPage /> },
                 { path: 'orders', element: <OrdersPage /> },

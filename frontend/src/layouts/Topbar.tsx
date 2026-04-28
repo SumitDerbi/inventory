@@ -96,6 +96,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
                         <DropdownMenuItem onSelect={() => navigate('/inquiries')}>Inquiry</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => navigate('/quotations')}>Quotation</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => navigate('/orders')}>Sales order</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/sales/invoices')}>Customer invoice</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Procurement</DropdownMenuLabel>
                         <DropdownMenuItem onSelect={() => navigate('/purchase/requisitions')}>Purchase requisition</DropdownMenuItem>

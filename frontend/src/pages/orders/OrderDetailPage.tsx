@@ -40,7 +40,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/Dialog';
-import { FormField, Input, Select, Textarea } from '@/components/ui/FormField';
+import { FormField, Input, Textarea } from '@/components/ui/FormField';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
 import { formatINR, formatRelative } from '@/lib/format';
@@ -66,12 +66,16 @@ import {
     type SalesOrder,
 } from '@/mocks/orders';
 import { userById } from '@/mocks/users';
+import { invoicesForOrder } from '@/mocks/customer-invoices';
+import { CustomerInvoiceTable } from '@/components/customer-invoices/CustomerInvoiceTable';
+import { CustomerInvoiceForm } from '@/components/customer-invoices/CustomerInvoiceForm';
 
 type TabKey =
     | 'items'
     | 'delivery'
     | 'mrp'
     | 'installation'
+    | 'invoices'
     | 'documents'
     | 'activity';
 
@@ -80,6 +84,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
     { key: 'delivery', label: 'Delivery Plan' },
     { key: 'mrp', label: 'Material Readiness' },
     { key: 'installation', label: 'Installation Readiness' },
+    { key: 'invoices', label: 'Invoices' },
     { key: 'documents', label: 'Documents' },
     { key: 'activity', label: 'Activity' },
 ];
@@ -337,11 +342,13 @@ export default function OrderDetailPage() {
                                 ? order.deliveryPlans.length
                                 : t.key === 'mrp'
                                     ? order.mrp.length
-                                    : t.key === 'documents'
-                                        ? order.documents.length
-                                        : t.key === 'activity'
-                                            ? order.activity.length
-                                            : null;
+                                    : t.key === 'invoices'
+                                        ? invoicesForOrder(order.id).length
+                                        : t.key === 'documents'
+                                            ? order.documents.length
+                                            : t.key === 'activity'
+                                                ? order.activity.length
+                                                : null;
                     return (
                         <button
                             key={t.key}
@@ -383,6 +390,7 @@ export default function OrderDetailPage() {
             )}
             {tab === 'mrp' && <MrpTab rows={order.mrp} />}
             {tab === 'installation' && <InstallationTab order={order} />}
+            {tab === 'invoices' && <InvoicesTab orderId={order.id} onRaise={() => setInvoiceOpen(true)} />}
             {tab === 'documents' && <DocumentsTab documents={order.documents} />}
             {tab === 'activity' && <ActivityTab activity={order.activity} />}
 
@@ -418,10 +426,11 @@ export default function OrderDetailPage() {
                 onOpenChange={setDispatchOpen}
                 order={order}
             />
-            <RaiseInvoiceDialog
+            <CustomerInvoiceForm
                 open={invoiceOpen}
                 onOpenChange={setInvoiceOpen}
-                order={order}
+                mode={{ kind: 'from-so', orderId: order.id }}
+                onCreated={(inv) => navigate(`/sales/invoices/${inv.id}`)}
             />
             <AddDeliveryDialog
                 open={addDeliveryOpen}
@@ -856,6 +865,22 @@ const DOC_TONE: Record<OrderDocument['type'], 'blue' | 'emerald' | 'indigo' | 'v
     installation_report: 'amber',
 };
 
+function InvoicesTab({ orderId, onRaise }: { orderId: string; onRaise: () => void }) {
+    const rows = invoicesForOrder(orderId);
+    return (
+        <Card
+            title={`Invoices (${rows.length})`}
+            actions={
+                <Button size="sm" variant="primary" onClick={onRaise}>
+                    <Plus className="size-3.5" /> New invoice
+                </Button>
+            }
+        >
+            <CustomerInvoiceTable rows={rows} hideColumns={['customer', 'order']} />
+        </Card>
+    );
+}
+
 function DocumentsTab({ documents }: { documents: OrderDocument[] }) {
     return (
         <Card title={`Documents (${documents.length})`}>
@@ -1255,72 +1280,7 @@ function CreateDispatchDialog({
 }
 
 /* -------------------------- Raise invoice -------------------------- */
-
-function RaiseInvoiceDialog({
-    open,
-    onOpenChange,
-    order,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    order: SalesOrder;
-}) {
-    const { push } = useToast();
-    const [invoiceType, setInvoiceType] = useState<'full' | 'partial' | 'proforma'>(
-        'full',
-    );
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Raise invoice</DialogTitle>
-                    <DialogDescription>
-                        Generates an invoice draft against {order.orderNumber}.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogBody className="space-y-3">
-                    <FormField label="Invoice type">
-                        <Select
-                            value={invoiceType}
-                            onChange={(e) =>
-                                setInvoiceType(
-                                    e.target.value as 'full' | 'partial' | 'proforma',
-                                )
-                            }
-                        >
-                            <option value="full">Full — {formatINR(order.totalValue)}</option>
-                            <option value="partial">Partial (dispatched so far)</option>
-                            <option value="proforma">Proforma (advance)</option>
-                        </Select>
-                    </FormField>
-                </DialogBody>
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={() => {
-                            push({
-                                variant: 'success',
-                                title: 'Invoice draft created',
-                                description: `${invoiceType.toUpperCase()} invoice for ${order.orderNumber}.`,
-                            });
-                            onOpenChange(false);
-                        }}
-                    >
-                        Create draft
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
+// Replaced by shared CustomerInvoiceForm.
 
 /* ------------------------- Add delivery plan ------------------------- */
 
