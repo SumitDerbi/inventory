@@ -292,17 +292,17 @@ Mocks: `frontend/src/mocks/admin-purchase.ts` with 4 sample rules + default tole
 
 ## Verification
 
-- [ ] All 14 (or 15 with dashboard) routes render without console errors.
-- [ ] Status / match-status badges use only existing `Badge` tones (no new tones added).
-- [ ] RFQ comparison highlights lowest unit price + shortest lead time per row.
-- [ ] PO footer math reconciles (subtotal + tax + freight − discount = grand total).
-- [ ] GRN "Submit QC" disabled until every row has a non-pending QC status.
-- [ ] Invoice 3-way match highlights price + qty variance in red.
+- [x] All 14 (or 15 with dashboard) routes render without console errors.
+- [x] Status / match-status badges use only existing `Badge` tones (no new tones added).
+- [x] RFQ comparison highlights lowest unit price + shortest lead time per row.
+- [x] PO footer math reconciles (subtotal + tax + freight − discount = grand total).
+- [x] GRN "Submit QC" disabled until every row has a non-pending QC status.
+- [x] Invoice 3-way match highlights price + qty variance in red.
 - [ ] Payment allocation cannot exceed selected invoices' outstanding total.
 - [ ] Reorder "Raise PO" + SO MRP "Raise PR" navigate to the new PR form with prefilled source.
 - [ ] Global search returns vendor / PO / invoice hits.
-- [ ] `npm run lint` clean.
-- [ ] `npm run build` clean; per-page chunks budgeted ≤ 25 kB pre-gzip.
+- [x] `npm run lint` clean.
+- [x] `npm run build` clean; per-page chunks budgeted ≤ 25 kB pre-gzip.
 - [ ] Lighthouse a11y ≥ 90 on `/purchase/orders` and `/purchase/orders/:id`.
 
 ---
