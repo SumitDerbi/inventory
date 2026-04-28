@@ -41,11 +41,13 @@ Follow the same order as Phase 1 for consistency:
 3. Quotations
 4. Sales Orders
 5. Inventory
-6. Dispatch
-7. Jobs
-8. Documents
-9. Reports
-10. Admin (users / roles / settings / profile / notifications)
+6. Purchase & procurement (vendors → PR → RFQ → PO → GRN → invoices → payments → returns → dashboard → admin)
+7. Dispatch
+8. Jobs
+9. Documents
+10. Reports
+11. Customers (master, including merge)
+12. Admin (users / roles / settings / profile / notifications)
 
 Use [../templates/module-ui-checklist.md](../templates/module-ui-checklist.md) as a copy-paste PR template for each module.
 

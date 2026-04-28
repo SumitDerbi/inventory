@@ -17,6 +17,7 @@
 | POST   | `/api/v1/orders/:id/cancel`                 | reason required                                          |
 | POST   | `/api/v1/orders/:id/amend`                  | kicks approval                                           |
 | GET    | `/api/v1/orders/:id/mrp`                    | stock availability per item                              |
+| POST   | `/api/v1/orders/:id/raise-prs`              | create draft PRs from MRP shortages (see [08b](./08b-purchase-api.md)) |
 | POST   | `/api/v1/orders/:id/reserve`                | reserve stock                                            |
 | POST   | `/api/v1/orders/:id/release`                | release reservation                                      |
 | CRUD   | `/api/v1/orders/:id/delivery-schedules`     |                                                          |
