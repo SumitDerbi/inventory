@@ -84,7 +84,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                         Global search
                     </DialogPrimitive.Title>
                     <DialogPrimitive.Description className="sr-only">
-                        Search inquiries, quotations, orders, jobs, documents and customers.
+                        Search inquiries, quotations, orders, jobs, documents, customers, vendors and purchase records.
                     </DialogPrimitive.Description>
                     <div className="flex items-center gap-2 border-b border-slate-100 px-4">
                         <Search
@@ -96,7 +96,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             onKeyDown={handleKey}
-                            placeholder="Search inquiries, quotes, orders, customers, documents…"
+                            placeholder="Search inquiries, quotes, orders, vendors, POs, GRNs…"
                             className="flex-1 bg-transparent py-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
                             aria-label="Search"
                             autoComplete="off"

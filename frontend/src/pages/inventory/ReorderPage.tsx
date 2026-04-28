@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +17,7 @@ import { warehouses, warehouseById } from '@/mocks/warehouses';
 
 export default function ReorderPage() {
     const { push } = useToast();
+    const navigate = useNavigate();
     const all = useMemo(() => reorderRows(), []);
     const [severity, setSeverity] = useState<'' | 'low' | 'out'>('');
     const [warehouseFilter, setWarehouseFilter] = useState('');
@@ -80,17 +81,18 @@ export default function ReorderPage() {
                 actions={
                     <Button
                         size="sm"
-                        onClick={() =>
+                        onClick={() => {
                             push({
                                 variant: 'success',
-                                title: `PO draft created`,
-                                description: `${rows.length} item(s) queued for approval.`,
-                            })
-                        }
+                                title: 'PR draft created',
+                                description: `${rows.length} item(s) queued for procurement.`,
+                            });
+                            navigate('/purchase/requisitions?source=reorder');
+                        }}
                         disabled={rows.length === 0}
                     >
                         <ShoppingCart className="size-4" aria-hidden="true" />
-                        Raise PO for all
+                        Raise PR for all
                     </Button>
                 }
             />
@@ -117,13 +119,14 @@ export default function ReorderPage() {
                         </thead>
                         <tbody>
                             {rows.map((r) => (
-                                <ReorderTableRow key={r.product.id} row={r} onRaise={() =>
+                                <ReorderTableRow key={r.product.id} row={r} onRaise={() => {
                                     push({
                                         variant: 'success',
-                                        title: 'PO draft created',
+                                        title: 'PR draft created',
                                         description: `${r.product.sku} × ${r.suggestedPoQty}.`,
-                                    })
-                                } />
+                                    });
+                                    navigate(`/purchase/requisitions?source=reorder&sku=${r.product.sku}`);
+                                }} />
                             ))}
                         </tbody>
                     </table>
@@ -185,7 +188,7 @@ function ReorderTableRow({
             </td>
             <td className="px-3 py-2 text-right">
                 <Button size="sm" variant="outline" onClick={onRaise}>
-                    Raise PO
+                    Raise PR
                 </Button>
             </td>
         </tr>

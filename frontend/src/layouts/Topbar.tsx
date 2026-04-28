@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, KeyRound, LogOut, Menu, Search, User } from 'lucide-react';
+import { Bell, ChevronRight, KeyRound, LogOut, Menu, Plus, Search, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
@@ -84,6 +84,28 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
             </nav>
 
             <div className="ml-auto flex items-center gap-1">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="hidden md:inline-flex" aria-label="Quick create">
+                            <Plus className="size-4" aria-hidden="true" />
+                            <span className="text-xs">New</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Quick create</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => navigate('/inquiries')}>Inquiry</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/quotations')}>Quotation</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/orders')}>Sales order</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Procurement</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => navigate('/purchase/requisitions')}>Purchase requisition</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/purchase')}>Purchase order</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/purchase/grns')}>GRN</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/purchase/invoices')}>Vendor invoice</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/purchase/payments')}>Payment</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/purchase/vendors')}>Vendor</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <button
                     type="button"
                     onClick={() => setSearchOpen(true)}

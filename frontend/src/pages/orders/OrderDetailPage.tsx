@@ -291,6 +291,38 @@ export default function OrderDetailPage() {
                 />
             </div>
 
+            {hasShortage && (
+                <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
+                    <ShieldAlert className="mt-0.5 size-4 shrink-0 text-red-600" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                        <p className="font-medium text-red-800">Material shortage detected</p>
+                        <ul className="mt-1 space-y-0.5 text-xs text-red-700">
+                            {order.mrp
+                                .filter((m) => m.shortage > 0)
+                                .slice(0, 5)
+                                .map((m) => (
+                                    <li key={m.productId}>
+                                        {m.description} — short {m.shortage}
+                                    </li>
+                                ))}
+                        </ul>
+                    </div>
+                    <Button
+                        size="sm"
+                        onClick={() => {
+                            push({
+                                variant: 'success',
+                                title: 'PR draft created',
+                                description: `${order.mrp.filter((m) => m.shortage > 0).length} short item(s) queued.`,
+                            });
+                            navigate(`/purchase/requisitions?source=sales_order&id=${order.id}`);
+                        }}
+                    >
+                        Raise PR
+                    </Button>
+                </div>
+            )}
+
             {/* Tabs */}
             <div
                 role="tablist"

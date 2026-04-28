@@ -4,6 +4,14 @@ import { orders } from './orders';
 import { jobs } from './jobs';
 import { documents } from './documents';
 import { customers } from './customers';
+import { vendors } from './vendors';
+import { purchaseRequisitions } from './purchase-requisitions';
+import { rfqs } from './rfqs';
+import { purchaseOrders } from './purchase-orders';
+import { grns } from './grns';
+import { vendorInvoices } from './vendor-invoices';
+import { vendorPayments } from './vendor-payments';
+import { purchaseReturns } from './purchase-returns';
 
 export type SearchResultType =
     | 'inquiry'
@@ -11,7 +19,15 @@ export type SearchResultType =
     | 'order'
     | 'job'
     | 'document'
-    | 'customer';
+    | 'customer'
+    | 'vendor'
+    | 'pr'
+    | 'rfq'
+    | 'po'
+    | 'grn'
+    | 'vendor_invoice'
+    | 'vendor_payment'
+    | 'purchase_return';
 
 export interface SearchResult {
     id: string;
@@ -30,6 +46,14 @@ const TYPE_ORDER: SearchResultType[] = [
     'job',
     'document',
     'customer',
+    'vendor',
+    'pr',
+    'rfq',
+    'po',
+    'grn',
+    'vendor_invoice',
+    'vendor_payment',
+    'purchase_return',
 ];
 
 export const SEARCH_TYPE_LABEL: Record<SearchResultType, string> = {
@@ -39,6 +63,14 @@ export const SEARCH_TYPE_LABEL: Record<SearchResultType, string> = {
     job: 'Jobs',
     document: 'Documents',
     customer: 'Customers',
+    vendor: 'Vendors',
+    pr: 'Purchase requisitions',
+    rfq: 'RFQs',
+    po: 'Purchase orders',
+    grn: 'GRNs',
+    vendor_invoice: 'Vendor invoices',
+    vendor_payment: 'Payments',
+    purchase_return: 'Returns',
 };
 
 function score(haystack: string, needle: string): { hit: boolean; score: number } {
@@ -212,6 +244,182 @@ export function searchAll(q: string, limit = 8): SearchResult[] {
                 title: c.name,
                 subtitle: c.legalName ?? c.primaryContact.phone,
                 href: `/customers/${c.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // Vendors
+    for (const v of vendors) {
+        const m = pick(
+            [
+                { field: 'code', value: v.code },
+                { field: 'name', value: v.name },
+                { field: 'legal', value: v.legalName },
+                { field: 'gstin', value: v.gstin },
+                { field: 'pan', value: v.pan },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: v.id,
+                type: 'vendor',
+                title: `${v.code} — ${v.name}`,
+                subtitle: `${v.category} · ${v.placeOfSupply}`,
+                href: `/purchase/vendors/${v.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // Purchase requisitions
+    for (const p of purchaseRequisitions) {
+        const m = pick(
+            [
+                { field: 'number', value: p.number },
+                { field: 'department', value: p.department },
+                { field: 'sourceRef', value: p.sourceRef ?? '' },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: p.id,
+                type: 'pr',
+                title: `${p.number} — ${p.department}`,
+                subtitle: `${p.source}${p.sourceRef ? ` · ${p.sourceRef}` : ''}`,
+                href: `/purchase/requisitions/${p.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // RFQs
+    for (const r of rfqs) {
+        const m = pick(
+            [
+                { field: 'number', value: r.number },
+                { field: 'pr', value: r.prNumber },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: r.id,
+                type: 'rfq',
+                title: r.number,
+                subtitle: `Linked PR ${r.prNumber}`,
+                href: `/purchase/rfqs/${r.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // Purchase orders
+    for (const p of purchaseOrders) {
+        const m = pick(
+            [
+                { field: 'number', value: p.number },
+                { field: 'prRef', value: p.prNumber ?? '' },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: p.id,
+                type: 'po',
+                title: p.number,
+                subtitle: `${p.stage}${p.prNumber ? ` · ${p.prNumber}` : ''}`,
+                href: `/purchase/orders/${p.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // GRNs
+    for (const g of grns) {
+        const m = pick(
+            [
+                { field: 'number', value: g.number },
+                { field: 'po', value: g.poNumber },
+                { field: 'invoiceRef', value: g.invoiceRef ?? '' },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: g.id,
+                type: 'grn',
+                title: g.number,
+                subtitle: `${g.poNumber} · ${g.stage}`,
+                href: `/purchase/grns/${g.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // Vendor invoices
+    for (const i of vendorInvoices) {
+        const m = pick(
+            [
+                { field: 'number', value: i.number },
+                { field: 'ref', value: i.internalRef },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: i.id,
+                type: 'vendor_invoice',
+                title: `${i.internalRef} — ${i.number}`,
+                subtitle: i.status,
+                href: `/purchase/invoices/${i.id}`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // Vendor payments
+    for (const p of vendorPayments) {
+        const m = pick([{ field: 'number', value: p.number }, { field: 'ref', value: p.transactionRef ?? '' }], trimmed);
+        if (m) {
+            out.push({
+                id: p.id,
+                type: 'vendor_payment',
+                title: p.number,
+                subtitle: `${p.mode} · ${p.status}`,
+                href: `/purchase/payments`,
+                matchedField: m.field,
+                score: m.score,
+            });
+        }
+    }
+
+    // Purchase returns
+    for (const r of purchaseReturns) {
+        const m = pick(
+            [
+                { field: 'number', value: r.number },
+                { field: 'grn', value: r.grnNumber ?? '' },
+                { field: 'debitNote', value: r.debitNoteRef ?? '' },
+            ],
+            trimmed,
+        );
+        if (m) {
+            out.push({
+                id: r.id,
+                type: 'purchase_return',
+                title: r.number,
+                subtitle: `${r.reason}${r.grnNumber ? ` · ${r.grnNumber}` : ''}`,
+                href: `/purchase/returns/${r.id}`,
                 matchedField: m.field,
                 score: m.score,
             });
