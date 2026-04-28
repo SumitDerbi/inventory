@@ -47,7 +47,10 @@ Follow the same order as Phase 1 for consistency:
 9. Documents
 10. Reports
 11. Customers (master, including merge)
-12. Admin (users / roles / settings / profile / notifications)
+12. Customer Invoices (standalone module + SO sub-tab share components)
+13. Approvals inbox (`/approvals`) — wires to `/api/v1/approvals/*`
+14. Client portal (`/portal/*`) — separate JWT realm
+15. Admin (users / roles / settings / profile / notifications)
 
 Use [../templates/module-ui-checklist.md](../templates/module-ui-checklist.md) as a copy-paste PR template for each module.
 

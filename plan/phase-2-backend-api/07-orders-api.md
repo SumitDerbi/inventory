@@ -28,6 +28,27 @@
 | POST   | `/api/v1/orders/bulk-ready`                 | `{ order_ids[] }` — stage advances per row if gates pass |
 | POST   | `/api/v1/orders/bulk-export`                | `{ order_ids[], format }` → file                         |
 
+### Customer invoices (sibling resource)
+
+Surfaced both as a sub-collection of an order and as a standalone resource (UI in [Phase 1 step 19](../phase-1-static-ui/19-customer-invoices.md) reuses one component set across both views).
+
+| Method | Path                                                | Purpose                                              |
+| ------ | --------------------------------------------------- | ---------------------------------------------------- |
+| GET    | `/api/v1/customer-invoices/`                        | list (filter by customer, status, date, balance>0)   |
+| POST   | `/api/v1/customer-invoices/`                        | create direct invoice (no order link)                |
+| GET    | `/api/v1/customer-invoices/:id`                     | detail                                               |
+| PATCH  | `/api/v1/customer-invoices/:id`                     | edit (only when `draft`)                             |
+| POST   | `/api/v1/customer-invoices/:id/send`                | email PDF + flip status to `sent`                    |
+| POST   | `/api/v1/customer-invoices/:id/cancel`              | reason required                                      |
+| POST   | `/api/v1/customer-invoices/:id/payments`            | record customer payment / partial                    |
+| GET    | `/api/v1/orders/:id/customer-invoices/`             | list invoices for an order (filtered helper)         |
+| POST   | `/api/v1/orders/:id/customer-invoices/`             | create invoice from SO (lines inherited)             |
+| GET    | `/api/v1/customer-invoices/aging`                   | buckets 0-30 / 31-60 / 61-90 / 90+                   |
+| POST   | `/api/v1/customer-invoices/bulk-send`               | `{ ids[] }`                                          |
+| POST   | `/api/v1/customer-invoices/bulk-export`             | `{ ids[], format }`                                  |
+
+Direct-invoice creation requires `customer_id` + line items; SO-linked creation inherits lines from the order and locks `customer_id`. Status machine: `draft → sent → partially_paid → paid` with side-branches `overdue` (cron) and `cancelled` (admin).
+
 ---
 
 ## Rules

@@ -323,4 +323,4 @@ One commit per major sub-area (matches Phase-1 cadence):
 
 ---
 
-**Next:** Phase 2 implementation — [../phase-2-backend-api/00-overview.md](../phase-2-backend-api/00-overview.md)
+**Next:** [18-client-portal.md](./18-client-portal.md)

@@ -31,6 +31,22 @@ All endpoints are gated by `module=settings, action=manage` permission (admin ro
 | POST   | `/api/v1/settings/email-templates/:id/preview`   | render with sample context           |
 | POST   | `/api/v1/settings/email-templates/:id/send-test` | send to current user's email         |
 
+### Approvals inbox (cross-module aggregator)
+
+Powers [Phase 1 step 20 — Approvals inbox](../phase-1-static-ui/20-approvals-inbox.md). Reads from each module's existing approval rows; no new approval store.
+
+| Method | Path                                       | Purpose                                                        |
+| ------ | ------------------------------------------ | -------------------------------------------------------------- |
+| GET    | `/api/v1/approvals/inbox/`                 | pending requests where next level matches caller's role/user   |
+| GET    | `/api/v1/approvals/history/`               | caller's last-90-days approve/reject actions                   |
+| GET    | `/api/v1/approvals/kpis/`                  | counts by kind + SLA bucket + total value pending              |
+| POST   | `/api/v1/approvals/:kind/:id/approve`      | `{ comment? }` — flips the entity's approval array entry       |
+| POST   | `/api/v1/approvals/:kind/:id/reject`       | `{ reason }`                                                   |
+| POST   | `/api/v1/approvals/bulk-approve`           | `{ kind, ids[], comment? }` — same-kind only; 207 on partial   |
+| POST   | `/api/v1/approvals/bulk-reject`            | `{ kind, ids[], reason }`                                      |
+
+`kind` enum: `quotation | so_amendment | pr | po | vendor_invoice | purchase_return`. Each handler delegates to the owning app's existing approve/reject service (no logic duplication). SLA buckets derived from `submitted_at` + each kind's configured SLA hours (defaults: 24 h normal / 4 h high priority).
+
 ---
 
 ## Models (added in step 02)

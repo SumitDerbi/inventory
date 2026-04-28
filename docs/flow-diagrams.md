@@ -328,7 +328,7 @@ Bank details, vendor PII gated by separate `purchase.view_bank_details` permissi
 
 ### Phase 3 — Dynamic integration (planned)
 
-Module wiring order will follow Phase 1 order exactly: Dashboard → Inquiries → Quotations → SO → Inventory → **Purchase** → Dispatch → Jobs → Documents → Reports → Admin → **Customers / Vendors** masters last (they're foreign-key targets, used everywhere; lowest blast radius if swapped last).
+Module wiring order will follow Phase 1 order exactly: Dashboard → Inquiries → Quotations → SO → Inventory → **Purchase** → Dispatch → Jobs → Documents → Reports → Admin → **Customers**, **Customer Invoices**, **Approvals inbox**, **Client portal** masters last (foreign-key targets / scoped JWT realm; lowest blast radius if swapped last).
 
 ---
 
@@ -341,21 +341,25 @@ Module wiring order will follow Phase 1 order exactly: Dashboard → Inquiries �
 | G1 | Phase 3 wiring order list           | `phase-3/03-modules-wiring.md` lists 10 modules but **omits Customers and Purchase**.              | Add both to keep parity with Phase 1.                                        |
 | G2 | SO Detail "Raise PR" CTA            | UI navigates to `/purchase/requisitions?source=sales_order&id={soId}`. Backend endpoint exists in plan (`POST /api/v1/orders/:id/raise-prs`) but not exposed in `07-orders-api.md` table — only mentioned in 08b. | Cross-link in `07-orders-api.md`.                                            |
 | G3 | Phase 1 Customers module            | Built in step 16 (gap closure) — flows + merge are implemented; no separate plan file lists every screen.  | Document customer flows here (done in §2 above).                             |
-| G4 | Client portal frontend              | API plan has `11b-client-portal-api.md`; no Phase 1 step or frontend pages for portal yet.         | Decide: scope portal as Phase 4 or extend Phase 1 with `18-client-portal.md`.|
-| G5 | Customer Invoices UI                | SO Detail has "Raise Invoice" button; standalone customer-invoice list/detail pages don't exist.   | Either treat invoices as SO sub-tab (current) or add list/detail screens.    |
+| G4 | Client portal frontend              | API plan has `11b-client-portal-api.md`; no Phase 1 step or frontend pages for portal yet.         | **Resolved** — added [Phase 1 step 18](../plan/phase-1-static-ui/18-client-portal.md) for portal static UI; reuses existing primitives. |
+| G5 | Customer Invoices UI                | SO Detail has "Raise Invoice" button; standalone customer-invoice list/detail pages don't exist.   | **Resolved** — added [Phase 1 step 19](../plan/phase-1-static-ui/19-customer-invoices.md): single component set used by both the SO sub-tab and a new `/sales/invoices` standalone module; matching `/api/v1/customer-invoices/` endpoints added in [07-orders-api.md](../plan/phase-2-backend-api/07-orders-api.md). |
 | G6 | Tax / HSN master                    | Settings page has tax-rules tab; no dedicated HSN code master in UI.                               | Confirm with client whether HSN search-from-master is needed pre-launch.     |
 | G7 | Payment advance allocation UI       | API has `/payments/allocate-advance`; PaymentListPage offers refund + new payment but no allocate-advance dialog. | Add a "Allocate advance" entry in payment row menu in Phase 1.5 if needed.   |
-| G8 | Approval inbox page                 | Approvals show as banners on detail pages; there's no central "My approvals" inbox.                | Decide if a global queue is required (admins find it useful).                |
+| G8 | Approval inbox page                 | Approvals show as banners on detail pages; there's no central "My approvals" inbox.                | **Resolved** — added [Phase 1 step 20](../plan/phase-1-static-ui/20-approvals-inbox.md) (`/approvals` page) + `/api/v1/approvals/inbox/` endpoints in [04b-settings-api.md](../plan/phase-2-backend-api/04b-settings-api.md); per-detail banners refactored to share the same approve/reject dialog. |
 | G9 | Bulk QC on GRN list                 | Plan has `/grns/bulk-submit-qc`; UI list page lacks bulk QC button.                                | Low priority — admins do QC per-line on detail; flag for later.              |
 | G10 | Vendor scorecard cache freshness UI | API exposes nightly cache; UI shows live data only.                                                | Add "Last refreshed" tag on vendor performance tab when wired.               |
 
 ### 8.2 Recommended fix-ups before client sign-off
 
-Only G1, G2, G4 affect plan correctness; the rest are scope decisions. Suggested actions:
+All plan-correctness gaps are now closed:
 
-- **G1**: update `phase-3-dynamic-integration/03-modules-wiring.md` to include Customers and Purchase in the order list.
-- **G2**: cross-reference `POST /api/v1/orders/:id/raise-prs` inside `phase-2-backend-api/07-orders-api.md`.
-- **G4**: agree with client whether the client-portal UI is part of v1 launch or a follow-up phase. The API is already planned; only the UI screens need scheduling.
+- ✅ **G1** Phase 3 wiring order updated to include Customers and Purchase.
+- ✅ **G2** SO `raise-prs` endpoint cross-linked in `07-orders-api.md`.
+- ✅ **G4** Client portal scoped as Phase 1 step 18.
+- ✅ **G5** Customer invoices promoted to standalone module reusing SO sub-tab components (Phase 1 step 19).
+- ✅ **G8** Approvals inbox added as Phase 1 step 20 + Phase 2 endpoints in `04b-settings-api.md`.
+
+Remaining items (G3, G6, G7, G9, G10) are scope decisions to confirm with the client during the sign-off review — none block Phase 2.
 
 Everything else (G3, G5–G10) is feature scope to confirm with the client during the sign-off review.
 
