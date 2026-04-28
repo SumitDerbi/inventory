@@ -1,6 +1,6 @@
 # Step 09 — Dispatch API
 
-> Before this: [08-inventory-api.md](./08-inventory-api.md)
+> Before this: [08b-purchase-api.md](./08b-purchase-api.md)
 > Spec: [docs/development_spec.md Module 5](../../docs/development_spec.md), [docs/project_details.md §5](../../docs/project_details.md)
 
 ---

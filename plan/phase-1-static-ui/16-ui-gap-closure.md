@@ -274,4 +274,4 @@ Light pass — Phase 1 has no Vitest yet. Manual checklist in each Verification 
 
 ---
 
-**Next:** Phase 2 implementation — [../phase-2-backend-api/01-django-setup.md](../phase-2-backend-api/01-django-setup.md).
+**Next:** [17-purchase.md](./17-purchase.md) — Purchase module static UI. Then Phase 2 implementation — [../phase-2-backend-api/01-django-setup.md](../phase-2-backend-api/01-django-setup.md).

@@ -18,6 +18,7 @@
 | 06  | [Quotations API](./06-quotations-api.md)                                                                 | ☐      |
 | 07  | [Sales Orders API](./07-orders-api.md)                                                                   | ☐      |
 | 08  | [Inventory API](./08-inventory-api.md)                                                                   | ☐      |
+| 08b | [Purchase & Procurement API](./08b-purchase-api.md)                                                      | ☐      |
 | 09  | [Dispatch API](./09-dispatch-api.md)                                                                     | ☐      |
 | 10  | [Jobs & Engineer API](./10-jobs-api.md)                                                                  | ☐      |
 | 11  | [Documents API](./11-documents-api.md)                                                                   | ☐      |
