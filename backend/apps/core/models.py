@@ -82,3 +82,11 @@ class AuditModel(TimeStampedModel, UserStampedModel, SoftDeleteModel):
 
     class Meta:
         abstract = True
+
+
+# Re-export concrete masters so Django's app registry sees them as `core.<Model>`.
+from apps.core.masters import (  # noqa: E402, F401
+    Attachment,
+    NumberSeries,
+    TaxRule,
+)
