@@ -100,10 +100,10 @@
 
 ## Verification
 
-- [ ] Pytest for `auth_ext` ≥ 90 % coverage.
-- [ ] Postman `Auth` folder all green.
-- [ ] OpenAPI shows correct security schemes for each endpoint.
-- [ ] Commit: `feat(api): auth + users + roles`.
+- [x] Pytest for `auth_ext` ≥ 90 % coverage. _(actual: **93 %** — models 96, serializers 95, services 95, views 88, urls 100)_
+- [ ] Postman `Auth` folder all green. _(deferred to [14-postman-tests.md](./14-postman-tests.md))_
+- [x] OpenAPI shows correct security schemes for each endpoint. _(simplejwt `Bearer` scheme via drf-spectacular; AllowAny on login/forgot/reset only)_
+- [x] Commit: `feat(api): auth + users + roles + sessions + 2FA` (`909c108`).
 
 ---
 
