@@ -1,5 +1,6 @@
-# Step 02 — Models & Migrations (All Apps)
+# Step 02 — Models & Migrations (All Apps) ✅
 
+> Status: **DONE** (commit `202bac0`)
 > Before this: [01-django-setup.md](./01-django-setup.md)
 > Source of truth: [docs/development_spec.md — Part A](../../docs/development_spec.md)
 
