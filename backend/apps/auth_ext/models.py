@@ -137,3 +137,55 @@ class SessionLog(models.Model):
     class Meta:
         db_table = "session_logs"
         ordering = ["-login_at"]
+
+
+class AuthSession(models.Model):
+    """Per-refresh-token session row. One row per active refresh."""
+
+    user = models.ForeignKey(
+        "auth_ext.User", on_delete=models.CASCADE, related_name="auth_sessions"
+    )
+    refresh_jti = models.CharField(max_length=255, unique=True)
+    device = models.CharField(max_length=100, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    ip_address = models.CharField(max_length=50, blank=True)
+    location = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "auth_sessions"
+        ordering = ["-last_seen_at"]
+
+
+class User2FA(models.Model):
+    """TOTP secret + recovery codes (hashed)."""
+
+    user = models.OneToOneField(
+        "auth_ext.User", on_delete=models.CASCADE, related_name="two_factor"
+    )
+    secret = models.CharField(max_length=64)
+    enrolled_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    recovery_codes = models.JSONField(default=list)  # list of hashed strings
+
+    class Meta:
+        db_table = "user_2fa"
+
+    @property
+    def is_enrolled(self) -> bool:
+        return self.enrolled_at is not None
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(
+        "auth_ext.User", on_delete=models.CASCADE, related_name="password_reset_tokens"
+    )
+    token_hash = models.CharField(max_length=128, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "password_reset_tokens"
+        ordering = ["-created_at"]

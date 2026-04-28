@@ -1,8 +1,4 @@
-"""Project-level URL configuration.
-
-Module-specific routers will be plugged in under `/api/v1/<module>/` from
-their respective app `urls.py` as steps 03+ land.
-"""
+"""Project-level URL configuration."""
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
@@ -11,10 +7,6 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
 
 
 def health(_request):
@@ -22,18 +14,14 @@ def health(_request):
 
 
 api_v1_patterns = [
-    # Module routes registered in steps 03+
-    # path("auth/", include("apps.auth_ext.urls")),
-    # path("inquiries/", include("apps.inquiries.urls")),
+    # Module routes registered in steps 04+
 ]
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
-    # Staff JWT endpoints — full auth flow lands in step 03; baseline pair
-    # included now so smoke tests can mint tokens.
-    path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # Auth + users + roles + permissions (step 03)
+    path("api/", include("apps.auth_ext.urls")),
     path("api/v1/", include((api_v1_patterns, "v1"))),
     # OpenAPI
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
