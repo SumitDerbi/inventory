@@ -75,7 +75,7 @@ plan/
 ## Progress tracker (tick as you complete)
 
 - 🟡 Phase 1 — Static UI _(17/20 steps ✅; 18-portal, 19-invoices, 20-approvals pending; hosting + sign-off pending)_
-- 🟡 Phase 2 — Backend API _(Steps 01–03 ✅: bootstrap, 84 models, full auth + 2FA + sessions; foundation 04/04b/04c next, then per-module vertical slices)_
+- 🟡 Phase 2 — Backend API _(Steps 01–04 ✅: bootstrap, 84 models, full auth + 2FA + sessions, shared masters + customers + attachments + notifications; foundation 04b/04c next, then per-module vertical slices)_
 - ☐ Phase 3 — Dynamic Integration + Deploy _(only cross-cutting steps remain here — see [phase-3-dynamic-integration/00-overview.md](./phase-3-dynamic-integration/00-overview.md))_
 
 > Detailed per-step tracking lives inside each phase's `00-overview.md`.

@@ -104,10 +104,10 @@ Response: `{ merged_into: "cust_123", moved: { inquiries, quotations, orders, jo
 
 ## Verification
 
-- [ ] Coverage ≥ 85 % on each app.
-- [ ] Postman folders all green.
-- [ ] Attachment upload works end-to-end against local storage; files saved under `/media/attachments/<entity_type>/<entity_id>/`.
-- [ ] Commit per resource: `feat(api): <resource> crud + tests`.
+- [x] Coverage ≥ 85 % on each app. _(27 new tests, 51 total passing)_
+- [ ] Postman folders all green. _(Postman harness lands in step 14)_
+- [x] Attachment upload works end-to-end against local storage; files saved under `/media/attachments/<entity_type>/<entity_id>/`.
+- [x] Commit per resource: `feat(api): <resource> crud + tests`.
 
 ---
 

@@ -15,6 +15,7 @@ class Customer(AuditModel):
         ACTIVE = "active", "Active"
         INACTIVE = "inactive", "Inactive"
         BLACKLISTED = "blacklisted", "Blacklisted"
+        MERGED = "merged", "Merged"
 
     customer_type = models.CharField(max_length=20, choices=CustomerType.choices, db_index=True)
     company_name = models.CharField(max_length=255, db_index=True)
@@ -44,6 +45,13 @@ class Customer(AuditModel):
         choices=Status.choices,
         default=Status.ACTIVE,
         db_index=True,
+    )
+    merged_into = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merged_from",
     )
     notes = models.TextField(blank=True)
 

@@ -14,7 +14,11 @@ def health(_request):
 
 
 api_v1_patterns = [
-    # Module routes registered in steps 04+
+    path("", include("apps.customers.urls")),
+    path("", include("apps.core.urls")),
+    path("", include("apps.inquiries.urls")),
+    path("", include("apps.inventory.urls")),
+    path("", include("apps.notifications.urls")),
 ]
 
 urlpatterns = [
