@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from . import approvals_views
+from .search_views import global_search
 from .settings_views import (
     CompanyProfileView,
     EmailTemplateViewSet,
@@ -38,4 +39,6 @@ approvals_urlpatterns = [
 ]
 
 
-urlpatterns = settings_urlpatterns + approvals_urlpatterns
+urlpatterns = settings_urlpatterns + approvals_urlpatterns + [
+    path("search/", global_search, name="global-search"),
+]

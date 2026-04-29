@@ -69,10 +69,10 @@ Frontend groups by `type` for display. `href` mirrors the route the SPA already 
 
 ## Verification
 
-- [ ] Coverage ≥ 85 %.
-- [ ] Search registry has at least one entry per module: inquiries, quotations, orders, jobs, documents, customers.
-- [ ] Response time < 100 ms p95 on the seed dataset.
-- [ ] Commit: `feat(api): global staff search`.
+- [x] Coverage ≥ 85 %.
+- [x] Search registry has at least one entry per module: inquiries, quotations, orders, jobs, documents, customers.
+- [x] Response time < 100 ms p95 on the seed dataset.
+- [x] Commit: `feat(api): global staff search`.
 
 ---
 

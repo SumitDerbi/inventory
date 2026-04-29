@@ -12,7 +12,7 @@ def _enable_db(db):
 def _disable_throttle(settings):
     settings.REST_FRAMEWORK = {
         **settings.REST_FRAMEWORK,
-        "DEFAULT_THROTTLE_RATES": {"anon": None, "user": None},
+        "DEFAULT_THROTTLE_RATES": {"anon": None, "user": None, "search": None},
     }
 
 
