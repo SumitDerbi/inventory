@@ -317,6 +317,316 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Quotations",
+      "item": [
+        {
+          "name": "Create Tax Rule (GST 18)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/tax-rules/", "host": ["{{base_url}}"], "path": ["api", "v1", "tax-rules", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"GST 18 PM {{$timestamp}}\",\n  \"tax_type\": \"GST\",\n  \"rate_percent\": \"18.00\",\n  \"applicable_to\": \"product\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('tax_rule_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Customer (Quote)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ts = String(Date.now());",
+                  "pm.variables.set('q_unique_mobile', '8' + ts.slice(-9));",
+                  "pm.variables.set('q_unique_email', 'qpat' + ts + '@example.com');",
+                  "pm.variables.set('q_unique_company', 'QPostman Co ' + ts);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('q_customer_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customers/", "host": ["{{base_url}}"], "path": ["api", "v1", "customers", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_type\": \"company\",\n  \"company_name\": \"{{q_unique_company}}\",\n  \"contact_person_name\": \"Quinn\",\n  \"mobile\": \"{{q_unique_mobile}}\",\n  \"email\": \"{{q_unique_email}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Quotation (draft)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const today = new Date();",
+                  "const fmt = (d) => d.toISOString().slice(0, 10);",
+                  "pm.variables.set('q_today', fmt(today));",
+                  "const exp = new Date(today.getTime() + 30*24*60*60*1000);",
+                  "pm.variables.set('q_valid_until', fmt(exp));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.quotation_number).to.match(/^QUO/);",
+                  "pm.expect(j.status).to.eql('draft');",
+                  "pm.environment.set('quotation_id', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/quotations/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"customer\": {{q_customer_id}},\n  \"project_name\": \"Postman Quote\",\n  \"quotation_date\": \"{{q_today}}\",\n  \"valid_until\": \"{{q_valid_until}}\"\n}" }
+          }
+        },
+        {
+          "name": "Add Line Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/items/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "items", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"product_description\": \"Centrifugal Pump 5HP\",\n  \"quantity\": \"10\",\n  \"unit\": \"nos\",\n  \"unit_cost\": \"8000\",\n  \"unit_price\": \"10000\",\n  \"discount_percent\": \"0\",\n  \"tax_rule\": {{tax_rule_id}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('quotation_item_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Quotation (totals)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.subtotal).to.eql('100000.00');",
+                  "pm.expect(j.total_tax).to.eql('18000.00');",
+                  "pm.expect(j.grand_total).to.eql('118000.00');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Quotations (search)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/quotations/?search=Postman", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", ""], "query": [{ "key": "search", "value": "Postman" }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().count).to.be.at.least(1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit for Approval",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/submit-approval/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "submit-approval", ""] },
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json().status;",
+                  "pm.expect(['approved','pending_approval']).to.include(s);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Quotation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/send/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "send", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"channel\": \"email\",\n  \"to_address\": \"buyer@example.com\",\n  \"subject\": \"Postman Quote\",\n  \"body\": \"Please find attached.\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.expect(pm.response.json().channel).to.eql('email');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Communications log",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/communications/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "communications", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().length).to.be.at.least(1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activity log",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/activity/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "activity", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const types = pm.response.json().map(r => r.action_type);",
+                  "pm.expect(types).to.include('created');",
+                  "pm.expect(types).to.include('sent');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone Quotation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/clone/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "clone", ""] },
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.status).to.eql('draft');",
+                  "pm.expect(j.version_number).to.eql(1);",
+                  "pm.environment.set('cloned_quotation_id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Convert to Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/convert-to-order/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", "convert-to-order", ""] },
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.order_number).to.match(/^SO/);",
+                  "pm.environment.set('order_id', j.order_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Quotation Converted",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/quotations/{{quotation_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "quotations", "{{quotation_id}}", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().status).to.eql('converted');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

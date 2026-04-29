@@ -60,11 +60,14 @@ def main() -> int:
             admin_user_id = line.split("=", 1)[1].strip()
 
     port = find_free_port()
+    log_path = REPO_ROOT / "postman" / "runserver.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    server_log = open(log_path, "w", encoding="utf-8", buffering=1)
     server = subprocess.Popen(
         [py, "manage.py", "runserver", f"127.0.0.1:{port}", "--noreload", "--insecure"],
         cwd=ROOT,
         env=env,
-        stdout=subprocess.PIPE,
+        stdout=server_log,
         stderr=subprocess.STDOUT,
     )
     try:
@@ -88,6 +91,10 @@ def main() -> int:
                 server.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 server.kill()
+        try:
+            server_log.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
