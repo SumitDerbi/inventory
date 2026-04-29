@@ -1,12 +1,14 @@
-# Step 04 — UI Unit Tests (Vitest + RTL + MSW)
+# Step 04 — UI Unit Tests harness (Vitest + RTL + MSW)
 
-> Before this: [03-modules-wiring.md](./03-modules-wiring.md)
+> **Harness only.** Per-module test specs are written **inside each Phase 2 module slice** (see [../SKILL.md §2.5](../SKILL.md) and [../phase-2-backend-api/00-overview.md](../phase-2-backend-api/00-overview.md)). This step delivers the shared test infrastructure so those module-level specs run consistently.
+>
+> Before this: [02-auth-wiring.md](./02-auth-wiring.md) (foundation). Per-module wiring playbook: [03-modules-wiring.md](./03-modules-wiring.md).
 
 ---
 
 ## Objective
 
-Cover every page with predictable, fast tests using mocked network via MSW.
+Stand up the Vitest + RTL + MSW harness once: shared `setup.ts`, MSW handlers per module folder, custom render with QueryClient + AuthProvider, coverage config. Per-module test specs **live with the module** in `src/pages/<module>/__tests__/` and are written during that module's Phase 2 slice.
 
 ---
 

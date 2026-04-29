@@ -1,12 +1,14 @@
-# Step 15 — Pytest Suite + Coverage Gates
+# Step 15 — Pytest coverage gates + CI integration
 
+> **Gates only.** Per-module pytest specs are authored **inside each Phase 2 module slice** (steps 05–13). This step locks the global config (pytest.ini, fixtures, coverage thresholds) and wires the suite into CI.
+>
 > Before this: [14-postman-tests.md](./14-postman-tests.md)
 
 ---
 
 ## Objective
 
-Consolidate the pytest suite, enforce coverage gates, wire it into CI.
+Consolidate the pytest suite, enforce coverage gates (≥ 85 % per app, ≥ 90 % on `auth_ext` and `portal`), wire it into CI alongside Newman.
 
 ---
 

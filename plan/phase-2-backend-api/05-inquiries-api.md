@@ -1,6 +1,16 @@
-# Step 05 — Inquiries API
+# Step 05 — Inquiries module slice (API + tests + Postman + UI wiring + UI tests)
 
-> Before this: [04-masters-api.md](./04-masters-api.md)
+> **Vertical slice.** Deliver this module **end-to-end** before starting Step 06. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope:
+> 1. Backend API (this file).
+> 2. Pytest for `apps/inquiries` (≥ 85 % cov, target tests inside `apps/inquiries/tests/`).
+> 3. Postman folder `Inquiries` in `postman/inventory.postman_collection.json` with chained env vars.
+> 4. Frontend wiring — swap mocks for live API in [../phase-1-static-ui/06-inquiries.md](../phase-1-static-ui/06-inquiries.md) screens (services + React Query hooks + form zod sync, follow [../SKILL.md §3.1–3.4](../SKILL.md)).
+> 5. Frontend unit tests for those screens (Vitest + RTL + MSW, [../SKILL.md §3.5](../SKILL.md)).
+> 6. Slice gate: pytest green, newman green for Inquiries folder, vitest green for inquiry pages, no console errors. Commit `feat(slice): inquiries`.
+
+> Before this: [04c-search-api.md](./04c-search-api.md)
 > Spec: [docs/development_spec.md Module 1](../../docs/development_spec.md), [docs/project_details.md §1](../../docs/project_details.md)
 
 ---

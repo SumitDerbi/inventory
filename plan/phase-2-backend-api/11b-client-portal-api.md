@@ -1,4 +1,8 @@
-# Step 11b — Client Portal API
+# Step 11b — Client Portal module slice (separate JWT realm)
+
+> **Vertical slice.** Deliver end-to-end before Step 12. Follow [../SKILL.md §2.5](../SKILL.md). Portal app coverage target is ≥ 90 %.
+>
+> Slice scope: backend API (this file, separate JWT audience `portal`) → pytest in `apps/portal/tests/` (≥ 90 % cov) → Postman folder `Portal` → frontend wiring of [../phase-1-static-ui/18-client-portal.md](../phase-1-static-ui/18-client-portal.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): portal`.
 
 > Before this: [11-documents-api.md](./11-documents-api.md)
 > Spec: [docs/development_spec.md Module 8 Client Portal](../../docs/development_spec.md), [docs/ui_spec.md — Portal screens](../../docs/ui_spec.md)

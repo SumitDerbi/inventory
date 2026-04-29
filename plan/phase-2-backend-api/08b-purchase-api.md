@@ -1,4 +1,8 @@
-# Step 08b — Purchase & Procurement API
+# Step 08b — Purchase & Procurement module slice (API + tests + Postman + UI wiring + UI tests)
+
+> **Vertical slice.** Deliver end-to-end before Step 09. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file) → pytest in `apps/purchase/tests/` (≥ 85 % cov) → Postman folder `Purchase` → frontend wiring of [../phase-1-static-ui/17-purchase.md](../phase-1-static-ui/17-purchase.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): purchase`.
 
 > Before this: [08-inventory-api.md](./08-inventory-api.md)
 > Spec: [docs/development_spec.md Module 11](../../docs/development_spec.md), [docs/project_details.md §11](../../docs/project_details.md), [docs/ui_spec.md §14](../../docs/ui_spec.md)

@@ -22,10 +22,10 @@ Every step is **small, verifiable, and points to the next step** — so an AI ag
 ## Guiding principles
 
 1. **Static UI first.** Ship a clickable, pixel-faithful UI with hardcoded data → get client sign-off on look, feel, fields, flows → only then touch APIs. Reduces rework by a huge margin.
-2. **One module = one vertical slice.** For each module we complete UI, then API, then wire + test before moving on.
+2. **Foundation horizontally, features vertically.** Cross-cutting work (project setup, all models/migrations, auth, shared masters, settings, global search) is built once across the whole codebase. Feature modules (inquiries → quotations → orders → …) are then built as **vertical slices**: each module ships API + pytest + Postman + UI wiring + UI tests before the next module starts. See [SKILL.md §2.5](./SKILL.md).
 3. **Every step has a verification checklist.** No step is "done" until its checklist passes.
 4. **Reusable SKILL.** [SKILL.md](./SKILL.md) captures the _repeatable workflow_ — open it every time a new module/screen is picked up.
-5. **Tests are not optional.** API pytest + Postman collection + UI unit tests + Playwright smoke are part of "definition of done" for dynamic phase.
+5. **Tests are not optional.** API pytest + Postman collection + UI unit tests + Playwright smoke are part of "definition of done" for every module slice.
 
 ---
 
@@ -74,11 +74,12 @@ plan/
 
 ## Progress tracker (tick as you complete)
 
-- [ ] Phase 1 — Static UI
-- [ ] Phase 2 — Backend API
-- [ ] Phase 3 — Dynamic Integration + Deploy
+- 🟡 Phase 1 — Static UI _(17/20 steps ✅; 18-portal, 19-invoices, 20-approvals pending; hosting + sign-off pending)_
+- 🟡 Phase 2 — Backend API _(Steps 01–03 ✅: bootstrap, 84 models, full auth + 2FA + sessions; foundation 04/04b/04c next, then per-module vertical slices)_
+- ☐ Phase 3 — Dynamic Integration + Deploy _(only cross-cutting steps remain here — see [phase-3-dynamic-integration/00-overview.md](./phase-3-dynamic-integration/00-overview.md))_
 
 > Detailed per-step tracking lives inside each phase's `00-overview.md`.
+> Per-module **wiring + UI tests** are tracked inside the Phase 2 module step (vertical slice), not in Phase 3.
 
 ---
 

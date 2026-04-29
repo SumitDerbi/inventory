@@ -1,4 +1,8 @@
-# Step 12 — Reports API (Read-only Aggregations + Saved & Scheduled)
+# Step 12 — Reports module slice (read-only aggregations, saved & scheduled)
+
+> **Vertical slice.** Deliver end-to-end before Step 13. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file, read-only) → pytest in `apps/reports/tests/` (≥ 85 % cov) → Postman folder `Reports` → frontend wiring of [../phase-1-static-ui/13-reports.md](../phase-1-static-ui/13-reports.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): reports`.
 
 > Before this: [11b-client-portal-api.md](./11b-client-portal-api.md)
 

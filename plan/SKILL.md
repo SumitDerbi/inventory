@@ -114,11 +114,28 @@ Repeat for every resource.
 
 ---
 
+## 2.5 Module slice workflow (vertical, Phase 2 step 05 onwards)
+
+> Once foundation work is in place (Phase 2 steps 01–04c), each remaining feature module is a **vertical slice**. Do **not** build all backend APIs first then circle back for UI wiring — finish one module end-to-end, ship it, then start the next.
+
+For one module (e.g. Inquiries):
+
+1. **Backend API** — follow §2.1 → §2.4 (model already exists from step 02; here we add serializer + viewset + URL).
+2. **Backend tests** — follow §2.5 (pytest, ≥ 85 % coverage on the app).
+3. **Postman folder** — follow §2.6 (requests + tests + env chaining).
+4. **Frontend wiring** — follow §3.1 → §3.4 for that module only (service, hooks, replace mocks, forms, optimistic updates).
+5. **Frontend unit tests** — follow §3.5 for that module only (Vitest + RTL + MSW).
+6. **Slice gate** — `pytest` green for app, `newman` green for module folder, `vitest` green for module pages, no console errors when clicking through, conventional commit `feat(slice): <module>`.
+
+Cross-cutting steps that stay outside module slices and live in Phase 3 only: API client baseline, auth wiring, Playwright E2E across modules, combined deploy.
+
+---
+
 ## 3. Dynamic integration workflow (Phase 3)
 
-Repeat for every screen/module.
+> **Scope changed:** per-module wiring + per-module UI tests now happen **inside the Phase 2 module slice** (§2.5). Phase 3 covers only the cross-cutting steps below.
 
-### 3.1 API client
+### 3.1 API client (one-time, Phase 3 step 01)
 
 - [ ] Add typed service in `src/services/<module>.js` using the shared `axios` instance.
 - [ ] Wrap each endpoint with a React Query hook in `src/hooks/use<Module>.js` (`useQuery`, `useMutation`, invalidation keys).

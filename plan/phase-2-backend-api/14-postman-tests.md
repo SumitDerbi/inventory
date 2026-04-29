@@ -1,12 +1,14 @@
-# Step 14 — Postman Collection + Newman CI
+# Step 14 — Postman / Newman CI harness
 
+> **Harness only.** Per-module Postman folders + chained env vars are authored **inside each Phase 2 module slice** (steps 05–13). This step delivers the global collection skeleton, environment files, and the Newman CI runner that exercises every folder authored by the slices.
+>
 > Before this: [13-notifications-api.md](./13-notifications-api.md)
 
 ---
 
 ## Objective
 
-Ship a single Postman collection + environment files that a new developer can import and run end-to-end.
+Ship a single Postman collection + environment files that a new developer can import and run end-to-end. Each module slice contributes its folder; this step locks the structure, adds the auth/refresh helpers, and wires Newman into CI.
 
 ---
 

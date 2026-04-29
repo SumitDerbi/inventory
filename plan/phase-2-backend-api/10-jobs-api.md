@@ -1,4 +1,8 @@
-# Step 10 — Jobs & Engineer API
+# Step 10 — Jobs & Engineer module slice (API + tests + Postman + UI wiring + UI tests)
+
+> **Vertical slice.** Deliver end-to-end before Step 11. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file) → pytest in `apps/jobs/tests/` (≥ 85 % cov) → Postman folder `Jobs` → frontend wiring of [../phase-1-static-ui/11-jobs-engineer.md](../phase-1-static-ui/11-jobs-engineer.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): jobs`.
 
 > Before this: [09-dispatch-api.md](./09-dispatch-api.md)
 > Spec: [docs/development_spec.md Module 6](../../docs/development_spec.md), [docs/project_details.md §6](../../docs/project_details.md)

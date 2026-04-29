@@ -1,6 +1,11 @@
-# Step 03 — Per-Module Wiring Playbook
+# Step 03 — Per-Module Wiring Playbook (reference, used inside each Phase 2 slice)
 
-> Before this: [02-auth-wiring.md](./02-auth-wiring.md)
+> **Not a standalone step anymore.** This file is the **playbook referenced by every Phase 2 module slice** (steps 05–13 in `../phase-2-backend-api/`). Each slice imports the recipe below to do its frontend wiring + form sync, then ticks its slice gate. See [../SKILL.md §2.5](../SKILL.md).
+>
+> Foundation prerequisites that apply once across the codebase:
+> - [01-api-client.md](./01-api-client.md) — axios + React Query baseline.
+> - [02-auth-wiring.md](./02-auth-wiring.md) — token store, refresh, guards.
+>
 > Per-module checklist template: [../templates/module-ui-checklist.md](../templates/module-ui-checklist.md)
 
 ---

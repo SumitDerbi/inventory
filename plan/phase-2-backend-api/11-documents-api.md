@@ -1,4 +1,8 @@
-# Step 11 — Documents, Invoices, Certificates & Serial Registry API
+# Step 11 — Documents, Invoices, Certificates & Serial Registry module slice
+
+> **Vertical slice.** Deliver end-to-end before Step 11b. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file) → pytest in `apps/documents/tests/` (≥ 85 % cov) → Postman folder `Documents` → frontend wiring of [../phase-1-static-ui/12-documents.md](../phase-1-static-ui/12-documents.md) and [../phase-1-static-ui/19-customer-invoices.md](../phase-1-static-ui/19-customer-invoices.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): documents`.
 
 > Before this: [10-jobs-api.md](./10-jobs-api.md)
 > Spec: [docs/project_details.md §7 Documents](../../docs/project_details.md), [docs/development_spec.md Module 7](../../docs/development_spec.md)

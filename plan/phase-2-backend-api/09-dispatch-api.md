@@ -1,4 +1,8 @@
-# Step 09 — Dispatch API
+# Step 09 — Dispatch module slice (API + tests + Postman + UI wiring + UI tests)
+
+> **Vertical slice.** Deliver end-to-end before Step 10. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file) → pytest in `apps/dispatch/tests/` (≥ 85 % cov) → Postman folder `Dispatch` → frontend wiring of [../phase-1-static-ui/10-dispatch.md](../phase-1-static-ui/10-dispatch.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): dispatch`.
 
 > Before this: [08b-purchase-api.md](./08b-purchase-api.md)
 > Spec: [docs/development_spec.md Module 5](../../docs/development_spec.md), [docs/project_details.md §5](../../docs/project_details.md)

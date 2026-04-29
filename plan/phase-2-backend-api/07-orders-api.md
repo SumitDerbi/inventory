@@ -1,4 +1,8 @@
-# Step 07 — Sales Orders API
+# Step 07 — Sales Orders module slice (API + tests + Postman + UI wiring + UI tests)
+
+> **Vertical slice.** Deliver end-to-end before Step 08. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file) → pytest in `apps/orders/tests/` (≥ 85 % cov) → Postman folder `Sales Orders` → frontend wiring of [../phase-1-static-ui/08-sales-orders.md](../phase-1-static-ui/08-sales-orders.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): orders`.
 
 > Before this: [06-quotations-api.md](./06-quotations-api.md)
 > Spec: [docs/development_spec.md Module 3](../../docs/development_spec.md), [docs/project_details.md §3](../../docs/project_details.md)

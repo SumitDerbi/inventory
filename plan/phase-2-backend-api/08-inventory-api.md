@@ -1,4 +1,8 @@
-# Step 08 — Inventory API
+# Step 08 — Inventory module slice (API + tests + Postman + UI wiring + UI tests)
+
+> **Vertical slice.** Deliver end-to-end before Step 08b. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file, includes `stock_summary_v` RunSQL) → pytest in `apps/inventory/tests/` (≥ 85 % cov) → Postman folder `Inventory` → frontend wiring of [../phase-1-static-ui/09-inventory.md](../phase-1-static-ui/09-inventory.md) screens → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): inventory`.
 
 > Before this: [07-orders-api.md](./07-orders-api.md)
 > Spec: [docs/development_spec.md Module 4](../../docs/development_spec.md), [docs/project_details.md §4](../../docs/project_details.md)

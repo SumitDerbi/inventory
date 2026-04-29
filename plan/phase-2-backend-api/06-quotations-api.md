@@ -1,4 +1,8 @@
-# Step 06 — Quotations API
+# Step 06 — Quotations module slice (API + tests + Postman + UI wiring + UI tests)
+
+> **Vertical slice.** Deliver end-to-end before Step 07. Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API (this file) → pytest in `apps/quotations/tests/` (≥ 85 % cov) → Postman folder `Quotations` → frontend wiring of [../phase-1-static-ui/07-quotations.md](../phase-1-static-ui/07-quotations.md) screens → Vitest+RTL+MSW unit tests for those pages → slice gate + commit `feat(slice): quotations`.
 
 > Before this: [05-inquiries-api.md](./05-inquiries-api.md)
 > Spec: [docs/development_spec.md Module 2](../../docs/development_spec.md), [docs/project_details.md §2](../../docs/project_details.md)

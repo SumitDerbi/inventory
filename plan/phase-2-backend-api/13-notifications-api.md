@@ -1,4 +1,8 @@
-# Step 13 — Notifications API + Background Jobs
+# Step 13 — Notifications module slice + background jobs
+
+> **Vertical slice.** Final module slice before CI/coverage harnesses (steps 14–15). Follow [../SKILL.md §2.5](../SKILL.md).
+>
+> Slice scope: backend API + Celery/RQ workers (this file) → pytest in `apps/notifications/tests/` (≥ 85 % cov) → Postman folder `Notifications` → frontend wiring of the topbar bell + notification preferences (covered in [../phase-1-static-ui/03-app-shell.md](../phase-1-static-ui/03-app-shell.md) and [../phase-1-static-ui/16-ui-gap-closure.md](../phase-1-static-ui/16-ui-gap-closure.md)) → Vitest+RTL+MSW unit tests → slice gate + commit `feat(slice): notifications`.
 
 > Before this: [12-reports-api.md](./12-reports-api.md)
 
