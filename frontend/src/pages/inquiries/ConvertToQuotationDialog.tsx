@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import {
     Dialog,
     DialogBody,
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { extractErrorMessage } from '@/services/apiClient';
+import { useConvertInquiry } from '@/hooks/useInquiries';
 
 export interface ConvertToQuotationDialogProps {
     open: boolean;
@@ -27,19 +29,34 @@ export function ConvertToQuotationDialog({
 }: ConvertToQuotationDialogProps) {
     const { push } = useToast();
     const navigate = useNavigate();
+    const convertMutation = useConvertInquiry(inquiryId);
 
-    function handleConfirm() {
-        const quotationId = `Q-2026-${String(
-            Math.floor(Math.random() * 900) + 100,
-        )}`;
-        push({
-            variant: 'success',
-            title: 'Quotation created',
-            description: `${quotationId} draft created from ${inquiryNumber}.`,
-        });
-        onOpenChange(false);
-        // Static-UI: just navigate to the quotations list with hash for now.
-        navigate(`/quotations#${quotationId}-from-${inquiryId}`);
+    async function handleConfirm() {
+        try {
+            const result = await convertMutation.mutateAsync();
+            const quotationId =
+                (result as { id?: string | number; quotation_id?: string | number })?.id ??
+                (result as { quotation_id?: string | number })?.quotation_id;
+            push({
+                variant: 'success',
+                title: 'Quotation created',
+                description: quotationId
+                    ? `Quotation #${quotationId} created from ${inquiryNumber}.`
+                    : `Draft created from ${inquiryNumber}.`,
+            });
+            onOpenChange(false);
+            if (quotationId != null) {
+                navigate(`/quotations/${quotationId}`);
+            } else {
+                navigate('/quotations');
+            }
+        } catch (err) {
+            push({
+                variant: 'error',
+                title: 'Convert failed',
+                description: extractErrorMessage(err),
+            });
+        }
     }
 
     return (
@@ -70,10 +87,18 @@ export function ConvertToQuotationDialog({
                         type="button"
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
+                        disabled={convertMutation.isPending}
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleConfirm}>
+                    <Button
+                        type="button"
+                        onClick={handleConfirm}
+                        disabled={convertMutation.isPending}
+                    >
+                        {convertMutation.isPending && (
+                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                        )}
                         Create quotation
                     </Button>
                 </DialogFooter>

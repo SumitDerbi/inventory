@@ -29,18 +29,25 @@ export default function LoginPage() {
     } = useForm<LoginValues>({
         resolver: zodResolver(loginSchema),
         defaultValues: {
-            email: 'priya.sharma@example.com',
-            password: 'demo1234',
+            email: '',
+            password: '',
         },
         mode: 'onBlur',
     });
 
-    async function onSubmit() {
+    async function onSubmit(values: LoginValues) {
         setFormError(null);
-        await new Promise<void>((resolve) => setTimeout(resolve, 900));
-        // Phase 1 stub: all valid-format credentials are accepted. Real auth lands in Phase 3.
-        signIn();
-        navigate(from, { replace: true });
+        try {
+            await signIn(values.email, values.password);
+            navigate(from, { replace: true });
+        } catch (err) {
+            const status = (err as { response?: { status?: number } })?.response?.status;
+            const message =
+                status === 401
+                    ? 'Invalid email or password.'
+                    : (err as Error).message || 'Unable to sign in. Please try again.';
+            setFormError(message);
+        }
     }
 
     return (

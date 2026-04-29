@@ -86,6 +86,7 @@
 - [x] All Postman flows green. _(5b — newman 13/13 assertions, 0 failures)_
 - [x] Activity timeline shows every mutation. _(5a — created/updated/assigned/status_changed/follow_up_scheduled/follow_up_updated/line_item_added/line_item_updated/line_item_deleted/converted_to_quotation)_
 - [x] Commit: `feat(api): inquiries + workflow + tests`. _(5a backend slice)_
+- [x] Frontend wiring: services + React Query hooks + JWT axios client; InquiriesPage / Detail / FormDrawer / Convert / MarkLost wired to live API; `npm run build` green. _(5c)_
 
 ---
 

@@ -14,11 +14,14 @@ import { Button } from '@/components/ui/Button';
 import { FormField, Textarea } from '@/components/ui/FormField';
 import { useToast } from '@/components/ui/Toast';
 import { lostReasonSchema, type LostReasonFormValues } from '@/schemas/inquiry';
+import { extractErrorMessage } from '@/services/apiClient';
+import { useChangeInquiryStatus } from '@/hooks/useInquiries';
 
 export interface MarkLostDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     inquiryNumber: string;
+    inquiryId: string;
     onConfirmed?: () => void;
 }
 
@@ -26,9 +29,11 @@ export function MarkLostDialog({
     open,
     onOpenChange,
     inquiryNumber,
+    inquiryId,
     onConfirmed,
 }: MarkLostDialogProps) {
     const { push } = useToast();
+    const statusMutation = useChangeInquiryStatus(inquiryId);
     const {
         register,
         handleSubmit,
@@ -39,16 +44,27 @@ export function MarkLostDialog({
         defaultValues: { lostReason: '' },
     });
 
-    const onSubmit: SubmitHandler<LostReasonFormValues> = async () => {
-        await new Promise((r) => setTimeout(r, 400));
-        push({
-            variant: 'success',
-            title: 'Inquiry marked as lost',
-            description: inquiryNumber,
-        });
-        reset({ lostReason: '' });
-        onOpenChange(false);
-        onConfirmed?.();
+    const onSubmit: SubmitHandler<LostReasonFormValues> = async (values) => {
+        try {
+            await statusMutation.mutateAsync({
+                status: 'lost',
+                lostReason: values.lostReason,
+            });
+            push({
+                variant: 'success',
+                title: 'Inquiry marked as lost',
+                description: inquiryNumber,
+            });
+            reset({ lostReason: '' });
+            onOpenChange(false);
+            onConfirmed?.();
+        } catch (err) {
+            push({
+                variant: 'error',
+                title: 'Mark lost failed',
+                description: extractErrorMessage(err),
+            });
+        }
     };
 
     return (

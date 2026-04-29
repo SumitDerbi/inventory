@@ -5,6 +5,7 @@ import {
     Download,
     FileSpreadsheet,
     FileText,
+    Loader2,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -19,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { FormField, Select, Textarea } from '@/components/ui/FormField';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import {
     Dialog,
     DialogBody,
@@ -45,9 +47,18 @@ import {
     statusLabel,
 } from '@/lib/inquiryStatus';
 import type { InquiryPriority, InquiryStatus } from '@/lib/inquiryStatus';
-import { inquiries, type Inquiry } from '@/mocks/inquiries';
-import { inquirySources, sourceById } from '@/mocks/inquirySources';
+import type { Inquiry } from '@/mocks/inquiries';
+import { sourceById } from '@/mocks/inquirySources';
 import { users, userById } from '@/mocks/users';
+import { extractErrorMessage } from '@/services/apiClient';
+import {
+    useBulkAssignInquiries,
+    useBulkChangeStatus,
+    useBulkExport,
+    useDeleteInquiry,
+    useInquiriesQuery,
+    useInquirySources,
+} from '@/hooks/useInquiries';
 import { InquiryFormDrawer } from './InquiryFormDrawer';
 
 const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
@@ -63,6 +74,17 @@ function fmtDate(iso: string) {
 const SALES_USERS = users.filter((u) =>
     ['sales_executive', 'sales_manager'].includes(u.role),
 );
+
+function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
 
 export default function InquiriesPage() {
     const navigate = useNavigate();
@@ -84,52 +106,48 @@ export default function InquiriesPage() {
     const [bulkLostOpen, setBulkLostOpen] = useState(false);
     const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
+    // Server-side filtering for backend-supported params (status, priority, source,
+    // assigned_to, search). Client-side filtering for date range (not yet wired backend).
+    const inquiriesQuery = useInquiriesQuery({
+        search: search.trim() || undefined,
+        status: statusFilter || undefined,
+        priority: priorityFilter || undefined,
+        source: sourceFilter || undefined,
+        assignedTo: assignedFilter || undefined,
+        pageSize: 100,
+        ordering: '-created_at',
+    });
+    const sourcesQuery = useInquirySources();
+    const apiSources = sourcesQuery.data ?? [];
+
+    const deleteMutation = useDeleteInquiry();
+    const bulkAssignMutation = useBulkAssignInquiries();
+    const bulkStatusMutation = useBulkChangeStatus();
+    const bulkExportMutation = useBulkExport();
+
     // Clear selection when filters change.
     useEffect(() => {
         setSelected(new Set());
     }, [search, statusFilter, priorityFilter, sourceFilter, assignedFilter, fromDate, toDate]);
 
+    const rows: Inquiry[] = useMemo(() => inquiriesQuery.data?.results ?? [], [inquiriesQuery.data]);
+
     const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return inquiries.filter((i) => {
-            if (statusFilter && i.status !== statusFilter) return false;
-            if (priorityFilter && i.priority !== priorityFilter) return false;
-            if (sourceFilter && i.sourceId !== sourceFilter) return false;
-            if (assignedFilter && i.assignedTo !== assignedFilter) return false;
+        if (!fromDate && !toDate) return rows;
+        return rows.filter((i) => {
             if (fromDate && new Date(i.createdAt) < new Date(fromDate)) return false;
             if (toDate) {
                 const end = new Date(toDate);
                 end.setHours(23, 59, 59, 999);
                 if (new Date(i.createdAt) > end) return false;
             }
-            if (q) {
-                const hay = [
-                    i.inquiryNumber,
-                    i.customerName,
-                    i.companyName,
-                    i.mobile,
-                    i.email,
-                    i.projectName,
-                    i.city,
-                ]
-                    .join(' ')
-                    .toLowerCase();
-                if (!hay.includes(q)) return false;
-            }
             return true;
         });
-    }, [
-        search,
-        statusFilter,
-        priorityFilter,
-        sourceFilter,
-        assignedFilter,
-        fromDate,
-        toDate,
-    ]);
+    }, [rows, fromDate, toDate]);
 
-    const allSelected =
-        filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+    const totalCount = inquiriesQuery.data?.count ?? 0;
+
+    const allSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
     const someSelected = !allSelected && filtered.some((r) => selected.has(r.id));
 
     function toggleAll() {
@@ -183,12 +201,42 @@ export default function InquiriesPage() {
         setToDate('');
     }
 
-    function exportAs(format: 'CSV' | 'Excel' | 'PDF') {
-        push({
-            variant: 'info',
-            title: 'Export queued',
-            description: `${filtered.length} inquiries → ${format}. We'll email you when ready.`,
-        });
+    function handleExport(scope: 'view' | 'selected') {
+        const ids =
+            scope === 'selected' ? Array.from(selected) : filtered.map((r) => r.id);
+        if (ids.length === 0) {
+            push({
+                variant: 'info',
+                title: 'Nothing to export',
+                description: 'No inquiries in the current view.',
+            });
+            return;
+        }
+        bulkExportMutation.mutate(
+            { ids, format: 'csv' },
+            {
+                onSuccess: (blob) => {
+                    downloadBlob(blob, `inquiries-${new Date().toISOString().slice(0, 10)}.csv`);
+                    push({
+                        variant: 'success',
+                        title: 'Export ready',
+                        description: `${ids.length} inquiries exported.`,
+                    });
+                },
+                onError: (err) =>
+                    push({
+                        variant: 'error',
+                        title: 'Export failed',
+                        description: extractErrorMessage(err),
+                    }),
+            },
+        );
+    }
+
+    function sourceName(id: string) {
+        const live = apiSources.find((s) => s.id === id);
+        if (live) return live.name;
+        return sourceById(id)?.name ?? '—';
     }
 
     const columns: DataTableColumn<Inquiry>[] = [
@@ -213,7 +261,7 @@ export default function InquiriesPage() {
                     aria-label={`Select ${row.inquiryNumber}`}
                     className="size-4 cursor-pointer rounded border-slate-300 text-primary focus:ring-primary/40"
                     checked={selected.has(row.id)}
-                    onChange={() => { }}
+                    onChange={() => {}}
                     onClick={(e) => {
                         e.stopPropagation();
                         toggleOne(row.id, e.shiftKey);
@@ -240,9 +288,7 @@ export default function InquiriesPage() {
             key: 'createdAt',
             header: 'Date',
             cell: (row) => (
-                <span className="whitespace-nowrap text-slate-500">
-                    {fmtDate(row.createdAt)}
-                </span>
+                <span className="whitespace-nowrap text-slate-500">{fmtDate(row.createdAt)}</span>
             ),
             className: 'w-32',
         },
@@ -251,13 +297,9 @@ export default function InquiriesPage() {
             header: 'Customer',
             cell: (row) => (
                 <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-800">
-                        {row.customerName}
-                    </p>
+                    <p className="truncate font-medium text-slate-800">{row.customerName}</p>
                     {row.companyName && (
-                        <p className="truncate text-xs text-slate-400">
-                            {row.companyName}
-                        </p>
+                        <p className="truncate text-xs text-slate-400">{row.companyName}</p>
                     )}
                 </div>
             ),
@@ -265,44 +307,30 @@ export default function InquiriesPage() {
         {
             key: 'mobile',
             header: 'Mobile',
-            cell: (row) => (
-                <span className="whitespace-nowrap text-slate-600">{row.mobile}</span>
-            ),
+            cell: (row) => <span className="whitespace-nowrap text-slate-600">{row.mobile}</span>,
             className: 'w-36',
         },
         {
             key: 'project',
             header: 'Project',
-            cell: (row) => (
-                <span className="line-clamp-1 text-slate-700">
-                    {row.projectName || '—'}
-                </span>
-            ),
+            cell: (row) => <span className="line-clamp-1 text-slate-700">{row.projectName || '—'}</span>,
         },
         {
             key: 'source',
             header: 'Source',
-            cell: (row) => (
-                <span className="text-slate-600">
-                    {sourceById(row.sourceId)?.name ?? '—'}
-                </span>
-            ),
+            cell: (row) => <span className="text-slate-600">{sourceName(row.sourceId)}</span>,
             className: 'w-32',
         },
         {
             key: 'type',
             header: 'Type',
-            cell: (row) => (
-                <span className="text-slate-600">{inquiryTypeLabel(row.inquiryType)}</span>
-            ),
+            cell: (row) => <span className="text-slate-600">{inquiryTypeLabel(row.inquiryType)}</span>,
             className: 'w-32',
         },
         {
             key: 'priority',
             header: 'Priority',
-            cell: (row) => (
-                <PriorityBadge priority={priorityLabel(row.priority)} />
-            ),
+            cell: (row) => <PriorityBadge priority={priorityLabel(row.priority)} />,
             className: 'w-28',
         },
         {
@@ -316,7 +344,7 @@ export default function InquiriesPage() {
             header: 'Assigned',
             cell: (row) => (
                 <span className="whitespace-nowrap text-slate-600">
-                    {userById(row.assignedTo)?.name ?? '—'}
+                    {userById(row.assignedTo)?.name ?? (row.assignedTo ? `User #${row.assignedTo}` : '—')}
                 </span>
             ),
             className: 'w-36',
@@ -331,6 +359,23 @@ export default function InquiriesPage() {
                         setEditingInquiry(row);
                         setDrawerOpen(true);
                     }}
+                    onDelete={() => {
+                        if (!confirm(`Archive inquiry ${row.inquiryNumber}?`)) return;
+                        deleteMutation.mutate(row.id, {
+                            onSuccess: () =>
+                                push({
+                                    variant: 'success',
+                                    title: 'Inquiry archived',
+                                    description: row.inquiryNumber,
+                                }),
+                            onError: (err) =>
+                                push({
+                                    variant: 'error',
+                                    title: 'Archive failed',
+                                    description: extractErrorMessage(err),
+                                }),
+                        });
+                    }}
                 />
             ),
             className: 'w-10',
@@ -342,7 +387,11 @@ export default function InquiriesPage() {
         <div className="p-6 md:p-8">
             <PageHeader
                 title="Inquiries"
-                description={`${filtered.length} of ${inquiries.length} inquiries`}
+                description={
+                    inquiriesQuery.isLoading
+                        ? 'Loading…'
+                        : `${filtered.length} of ${totalCount} inquiries`
+                }
                 actions={
                     <Button
                         onClick={() => {
@@ -365,9 +414,7 @@ export default function InquiriesPage() {
                         <Select
                             aria-label="Status"
                             value={statusFilter}
-                            onChange={(e) =>
-                                setStatusFilter(e.target.value as InquiryStatus | '')
-                            }
+                            onChange={(e) => setStatusFilter(e.target.value as InquiryStatus | '')}
                             className="h-9 w-36"
                         >
                             <option value="">All statuses</option>
@@ -380,9 +427,7 @@ export default function InquiriesPage() {
                         <Select
                             aria-label="Priority"
                             value={priorityFilter}
-                            onChange={(e) =>
-                                setPriorityFilter(e.target.value as InquiryPriority | '')
-                            }
+                            onChange={(e) => setPriorityFilter(e.target.value as InquiryPriority | '')}
                             className="h-9 w-32"
                         >
                             <option value="">All priorities</option>
@@ -399,7 +444,7 @@ export default function InquiriesPage() {
                             className="h-9 w-36"
                         >
                             <option value="">All sources</option>
-                            {inquirySources.map((s) => (
+                            {apiSources.map((s) => (
                                 <option key={s.id} value={s.id}>
                                     {s.name}
                                 </option>
@@ -440,29 +485,42 @@ export default function InquiriesPage() {
                 actions={
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                <Download className="size-4" aria-hidden="true" />
+                            <Button variant="outline" disabled={bulkExportMutation.isPending}>
+                                {bulkExportMutation.isPending ? (
+                                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                                ) : (
+                                    <Download className="size-4" aria-hidden="true" />
+                                )}
                                 Export
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Export current view</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => exportAs('CSV')}>
+                            <DropdownMenuItem onSelect={() => handleExport('view')}>
                                 <FileText className="size-4" aria-hidden="true" />
                                 CSV
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => exportAs('Excel')}>
+                            <DropdownMenuItem disabled onSelect={() => {}}>
                                 <FileSpreadsheet className="size-4" aria-hidden="true" />
-                                Excel
+                                Excel (coming soon)
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => exportAs('PDF')}>
+                            <DropdownMenuItem disabled onSelect={() => {}}>
                                 <FileText className="size-4" aria-hidden="true" />
-                                PDF
+                                PDF (coming soon)
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 }
             />
+
+            {inquiriesQuery.isError && (
+                <div className="mb-3">
+                    <ErrorAlert
+                        title="Could not load inquiries"
+                        description={extractErrorMessage(inquiriesQuery.error)}
+                    />
+                </div>
+            )}
 
             {selected.size > 0 && (
                 <div className="mb-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm">
@@ -497,7 +555,8 @@ export default function InquiriesPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => exportAs('CSV')}
+                            onClick={() => handleExport('selected')}
+                            disabled={bulkExportMutation.isPending}
                         >
                             <Download className="size-4" aria-hidden="true" />
                             Export selected
@@ -514,6 +573,11 @@ export default function InquiriesPage() {
                 rows={filtered}
                 rowKey={(row) => row.id}
                 onRowClick={(row) => navigate(`/inquiries/${row.id}`)}
+                emptyState={
+                    inquiriesQuery.isLoading
+                        ? 'Loading inquiries…'
+                        : 'No inquiries match the current filters.'
+                }
             />
 
             <InquiryFormDrawer
@@ -529,43 +593,100 @@ export default function InquiriesPage() {
                 open={bulkAssignOpen}
                 onOpenChange={setBulkAssignOpen}
                 count={selected.size}
+                pending={bulkAssignMutation.isPending}
                 onConfirm={(userId) => {
-                    const u = SALES_USERS.find((x) => x.id === userId);
-                    push({
-                        variant: 'success',
-                        title: 'Bulk reassigned',
-                        description: `${selected.size} inquiries reassigned to ${u?.name ?? 'user'}.`,
-                    });
-                    clearSelection();
-                    setBulkAssignOpen(false);
+                    const ids = Array.from(selected);
+                    bulkAssignMutation.mutate(
+                        { ids, userId },
+                        {
+                            onSuccess: (result) => {
+                                const u = SALES_USERS.find((x) => x.id === userId);
+                                push({
+                                    variant: result.failed.length ? 'info' : 'success',
+                                    title: result.failed.length
+                                        ? `Reassigned ${result.succeeded.length} of ${ids.length}`
+                                        : 'Bulk reassigned',
+                                    description: `${result.succeeded.length} → ${u?.name ?? `User #${userId}`}${
+                                        result.failed.length
+                                            ? `; ${result.failed.length} failed`
+                                            : ''
+                                    }.`,
+                                });
+                                clearSelection();
+                                setBulkAssignOpen(false);
+                            },
+                            onError: (err) =>
+                                push({
+                                    variant: 'error',
+                                    title: 'Reassign failed',
+                                    description: extractErrorMessage(err),
+                                }),
+                        },
+                    );
                 }}
             />
             <BulkStatusDialog
                 open={bulkStatusOpen}
                 onOpenChange={setBulkStatusOpen}
                 count={selected.size}
+                pending={bulkStatusMutation.isPending}
                 onConfirm={(status) => {
-                    push({
-                        variant: 'success',
-                        title: 'Status updated',
-                        description: `${selected.size} inquiries → ${statusLabel(status)}.`,
-                    });
-                    clearSelection();
-                    setBulkStatusOpen(false);
+                    const ids = Array.from(selected);
+                    bulkStatusMutation.mutate(
+                        { ids, status },
+                        {
+                            onSuccess: (result) => {
+                                push({
+                                    variant: result.failed.length ? 'info' : 'success',
+                                    title: result.failed.length
+                                        ? `Updated ${result.succeeded.length} of ${ids.length}`
+                                        : 'Status updated',
+                                    description: `${result.succeeded.length} → ${statusLabel(status)}${
+                                        result.failed.length
+                                            ? `; ${result.failed.length} failed`
+                                            : ''
+                                    }.`,
+                                });
+                                clearSelection();
+                                setBulkStatusOpen(false);
+                            },
+                            onError: (err) =>
+                                push({
+                                    variant: 'error',
+                                    title: 'Status change failed',
+                                    description: extractErrorMessage(err),
+                                }),
+                        },
+                    );
                 }}
             />
             <BulkLostDialog
                 open={bulkLostOpen}
                 onOpenChange={setBulkLostOpen}
                 count={selected.size}
+                pending={bulkStatusMutation.isPending}
                 onConfirm={(reason) => {
-                    push({
-                        variant: 'success',
-                        title: 'Marked as lost',
-                        description: `${selected.size} inquiries marked lost (${reason}).`,
-                    });
-                    clearSelection();
-                    setBulkLostOpen(false);
+                    const ids = Array.from(selected);
+                    bulkStatusMutation.mutate(
+                        { ids, status: 'lost', lostReason: reason },
+                        {
+                            onSuccess: (result) => {
+                                push({
+                                    variant: result.failed.length ? 'info' : 'success',
+                                    title: 'Marked as lost',
+                                    description: `${result.succeeded.length} of ${ids.length} marked lost (${reason}).`,
+                                });
+                                clearSelection();
+                                setBulkLostOpen(false);
+                            },
+                            onError: (err) =>
+                                push({
+                                    variant: 'error',
+                                    title: 'Mark lost failed',
+                                    description: extractErrorMessage(err),
+                                }),
+                        },
+                    );
                 }}
             />
         </div>
@@ -575,11 +696,12 @@ export default function InquiriesPage() {
 function RowActions({
     row,
     onEdit,
+    onDelete,
 }: {
     row: Inquiry;
     onEdit: () => void;
+    onDelete: () => void;
 }) {
-    const { push } = useToast();
     return (
         <div onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
@@ -597,29 +719,8 @@ function RowActions({
                         <Pencil className="size-4" aria-hidden="true" />
                         Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                        onSelect={() =>
-                            push({
-                                variant: 'success',
-                                title: 'Reassigned',
-                                description: `${row.inquiryNumber} reassigned.`,
-                            })
-                        }
-                    >
-                        <UserPlus className="size-4" aria-hidden="true" />
-                        Reassign
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        destructive
-                        onSelect={() =>
-                            push({
-                                variant: 'success',
-                                title: 'Inquiry archived',
-                                description: row.inquiryNumber,
-                            })
-                        }
-                    >
+                    <DropdownMenuItem destructive onSelect={onDelete}>
                         <Trash2 className="size-4" aria-hidden="true" />
                         Archive
                     </DropdownMenuItem>
@@ -633,11 +734,13 @@ function BulkAssignDialog({
     open,
     onOpenChange,
     count,
+    pending,
     onConfirm,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     count: number;
+    pending: boolean;
     onConfirm: (userId: string) => void;
 }) {
     const [userId, setUserId] = useState('');
@@ -653,11 +756,8 @@ function BulkAssignDialog({
                 </DialogHeader>
                 <DialogBody>
                     <FormField label="Assignee" required>
-                        <Select
-                            value={userId}
-                            onChange={(e) => setUserId(e.target.value)}
-                        >
-                            <option value="">Select a user…</option>
+                        <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
+                            <option value="">Select user…</option>
                             {SALES_USERS.map((u) => (
                                 <option key={u.id} value={u.id}>
                                     {u.name}
@@ -671,9 +771,10 @@ function BulkAssignDialog({
                         Cancel
                     </Button>
                     <Button
-                        onClick={() => onConfirm(userId)}
-                        disabled={!userId}
+                        disabled={!userId || pending}
+                        onClick={() => userId && onConfirm(userId)}
                     >
+                        {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
                         Reassign
                     </Button>
                 </DialogFooter>
@@ -686,11 +787,13 @@ function BulkStatusDialog({
     open,
     onOpenChange,
     count,
+    pending,
     onConfirm,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     count: number;
+    pending: boolean;
     onConfirm: (status: InquiryStatus) => void;
 }) {
     const [status, setStatus] = useState<InquiryStatus | ''>('');
@@ -700,27 +803,21 @@ function BulkStatusDialog({
                 <DialogHeader>
                     <DialogTitle>Change status</DialogTitle>
                     <DialogDescription>
-                        Apply a new status to {count} inquir
-                        {count === 1 ? 'y' : 'ies'}. Use “Mark lost” for the lost
-                        status (it requires a reason).
+                        Update status for {count} selected inquir{count === 1 ? 'y' : 'ies'}.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
                     <FormField label="New status" required>
                         <Select
                             value={status}
-                            onChange={(e) =>
-                                setStatus(e.target.value as InquiryStatus | '')
-                            }
+                            onChange={(e) => setStatus(e.target.value as InquiryStatus | '')}
                         >
-                            <option value="">Select a status…</option>
-                            {INQUIRY_STATUSES.filter((s) => s !== 'lost').map(
-                                (s) => (
-                                    <option key={s} value={s}>
-                                        {statusLabel(s)}
-                                    </option>
-                                ),
-                            )}
+                            <option value="">Select…</option>
+                            {INQUIRY_STATUSES.filter((s) => s !== 'lost').map((s) => (
+                                <option key={s} value={s}>
+                                    {statusLabel(s)}
+                                </option>
+                            ))}
                         </Select>
                     </FormField>
                 </DialogBody>
@@ -729,10 +826,11 @@ function BulkStatusDialog({
                         Cancel
                     </Button>
                     <Button
-                        onClick={() => status && onConfirm(status)}
-                        disabled={!status}
+                        disabled={!status || pending}
+                        onClick={() => status && onConfirm(status as InquiryStatus)}
                     >
-                        Apply
+                        {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+                        Update
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -744,28 +842,24 @@ function BulkLostDialog({
     open,
     onOpenChange,
     count,
+    pending,
     onConfirm,
 }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     count: number;
+    pending: boolean;
     onConfirm: (reason: string) => void;
 }) {
     const [reason, setReason] = useState('');
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(v) => {
-                if (!v) setReason('');
-                onOpenChange(v);
-            }}
-        >
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Mark as lost</DialogTitle>
                     <DialogDescription>
-                        {count} inquir{count === 1 ? 'y' : 'ies'} will be moved to{' '}
-                        <strong>Lost</strong>. A reason is required.
+                        Capture a reason. Applied to all {count} selected inquir
+                        {count === 1 ? 'y' : 'ies'}.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
@@ -774,7 +868,7 @@ function BulkLostDialog({
                             rows={3}
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
-                            placeholder="e.g. price too high, lost to competitor X…"
+                            placeholder="e.g. competitor won on price"
                         />
                     </FormField>
                 </DialogBody>
@@ -784,9 +878,10 @@ function BulkLostDialog({
                     </Button>
                     <Button
                         variant="danger"
+                        disabled={!reason.trim() || pending}
                         onClick={() => onConfirm(reason.trim())}
-                        disabled={reason.trim().length < 3}
                     >
+                        {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
                         Mark lost
                     </Button>
                 </DialogFooter>

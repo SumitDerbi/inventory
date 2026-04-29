@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
@@ -26,11 +26,17 @@ import {
     statusLabel,
 } from '@/lib/inquiryStatus';
 import type { InquiryStatus, InquiryPriority, InquiryType } from '@/lib/inquiryStatus';
-import { inquirySources } from '@/mocks/inquirySources';
 import { productCategories } from '@/mocks/productCategories';
 import { users } from '@/mocks/users';
-import { inquiries, type Inquiry } from '@/mocks/inquiries';
+import { type Inquiry } from '@/mocks/inquiries';
 import { useToast } from '@/components/ui/Toast';
+import { extractErrorMessage } from '@/services/apiClient';
+import {
+    useCreateInquiry,
+    useInquirySources,
+    useUpdateInquiry,
+} from '@/hooks/useInquiries';
+import type { DuplicateMatch, InquiryWritePayload } from '@/services/inquiries';
 import {
     inquirySchema,
     type InquiryFormValues,
@@ -98,12 +104,17 @@ export function InquiryFormDrawer({
 }: InquiryFormDrawerProps) {
     const isEdit = Boolean(initial);
     const { push } = useToast();
+    const sourcesQuery = useInquirySources();
+    const apiSources = sourcesQuery.data ?? [];
+    const createMutation = useCreateInquiry();
+    const updateMutation = useUpdateInquiry(initial?.id ?? '');
+    const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+    const [pendingValues, setPendingValues] = useState<InquiryFormValues | null>(null);
 
     const {
         register,
         handleSubmit,
         reset,
-        watch,
         formState: { errors, isSubmitting },
     } = useForm<InquiryFormValues>({
         resolver: zodResolver(inquirySchema),
@@ -111,32 +122,90 @@ export function InquiryFormDrawer({
     });
 
     useEffect(() => {
-        if (open) reset(toFormValues(initial));
+        if (open) {
+            reset(toFormValues(initial));
+            setDuplicates(null);
+            setPendingValues(null);
+        }
     }, [open, initial, reset]);
 
-    const mobileValue = watch('mobile');
-    const emailValue = watch('email');
-    const dedupeMatch = (() => {
-        const m = (mobileValue ?? '').replace(/\s+/g, '');
-        const e = (emailValue ?? '').trim().toLowerCase();
-        if (!m && !e) return null;
-        return inquiries.find(
-            (i) =>
-                i.id !== initial?.id &&
-                ((m && i.mobile.replace(/\s+/g, '') === m) ||
-                    (e && i.email.toLowerCase() === e)),
-        );
-    })();
+    function toPayload(values: InquiryFormValues): InquiryWritePayload {
+        return {
+            sourceId: values.sourceId,
+            customerName: values.customerName,
+            companyName: values.companyName,
+            mobile: values.mobile,
+            email: values.email,
+            city: values.city,
+            state: values.state,
+            projectName: values.projectName,
+            projectDescription: values.projectDescription,
+            productCategoryId: values.productCategoryId,
+            inquiryType: values.inquiryType as InquiryType,
+            priority: values.priority as InquiryPriority,
+            assignedTo: values.assignedTo || null,
+            expectedOrderDate: values.expectedOrderDate || null,
+            siteLocation: values.siteLocation,
+            budgetRange: values.budgetRange,
+            sourceReference: values.sourceReference,
+            notes: values.notes,
+        };
+    }
 
     const onSubmit: SubmitHandler<InquiryFormValues> = async (values) => {
-        await new Promise((r) => setTimeout(r, 600));
-        push({
-            variant: 'success',
-            title: isEdit ? 'Inquiry updated' : 'Inquiry created',
-            description: `${values.customerName} — ${values.projectName || 'no project'}`,
-        });
-        onOpenChange(false);
+        try {
+            if (isEdit && initial) {
+                await updateMutation.mutateAsync(toPayload(values));
+                push({
+                    variant: 'success',
+                    title: 'Inquiry updated',
+                    description: `${values.customerName} — ${values.projectName || 'no project'}`,
+                });
+                onOpenChange(false);
+                return;
+            }
+            const result = await createMutation.mutateAsync({ payload: toPayload(values) });
+            if (result.duplicates && result.duplicates.length > 0) {
+                setDuplicates(result.duplicates);
+                setPendingValues(values);
+                return;
+            }
+            push({
+                variant: 'success',
+                title: 'Inquiry created',
+                description: result.inquiry?.inquiryNumber ?? values.customerName,
+            });
+            onOpenChange(false);
+        } catch (err) {
+            push({
+                variant: 'error',
+                title: isEdit ? 'Update failed' : 'Create failed',
+                description: extractErrorMessage(err),
+            });
+        }
     };
+
+    async function confirmCreateDespiteDuplicates() {
+        if (!pendingValues) return;
+        try {
+            const result = await createMutation.mutateAsync({
+                payload: toPayload(pendingValues),
+                force: true,
+            });
+            push({
+                variant: 'success',
+                title: 'Inquiry created',
+                description: result.inquiry?.inquiryNumber ?? pendingValues.customerName,
+            });
+            onOpenChange(false);
+        } catch (err) {
+            push({
+                variant: 'error',
+                title: 'Create failed',
+                description: extractErrorMessage(err),
+            });
+        }
+    }
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -171,7 +240,7 @@ export function InquiryFormDrawer({
                                         {...register('sourceId')}
                                     >
                                         <option value="">— Select —</option>
-                                        {inquirySources.map((s) => (
+                                        {apiSources.map((s) => (
                                             <option key={s.id} value={s.id}>
                                                 {s.name}
                                             </option>
@@ -262,14 +331,38 @@ export function InquiryFormDrawer({
                                     <Input {...register('state')} />
                                 </FormField>
                             </div>
-                            {dedupeMatch && (
-                                <p
+                            {duplicates && duplicates.length > 0 && (
+                                <div
                                     className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
                                     role="alert"
                                 >
-                                    Possible duplicate: {dedupeMatch.inquiryNumber} —{' '}
-                                    {dedupeMatch.customerName}
-                                </p>
+                                    <p className="font-medium">
+                                        Possible duplicate{duplicates.length > 1 ? 's' : ''}:
+                                    </p>
+                                    <ul className="mt-1 list-inside list-disc">
+                                        {duplicates.map((d) => (
+                                            <li key={d.id}>
+                                                {d.inquiry_number} — {d.customer_name}{' '}
+                                                <span className="text-amber-600">
+                                                    ({d.match_reasons.join(', ')})
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-2"
+                                        onClick={confirmCreateDespiteDuplicates}
+                                        disabled={createMutation.isPending}
+                                    >
+                                        {createMutation.isPending && (
+                                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                                        )}
+                                        Create anyway
+                                    </Button>
+                                </div>
                             )}
                         </Section>
 

@@ -55,6 +55,7 @@ import {
     Textarea,
 } from '@/components/ui/FormField';
 import { useToast } from '@/components/ui/Toast';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { cn } from '@/lib/cn';
 import { formatINR, formatRelative } from '@/lib/format';
 import {
@@ -66,16 +67,27 @@ import {
 } from '@/lib/inquiryStatus';
 import {
     type FollowUpType,
+    type Inquiry,
     type InquiryActivity,
     type InquiryAttachment,
     type InquiryFollowUp,
     type InquiryLineItem,
-    inquiryById,
 } from '@/mocks/inquiries';
 import { sourceById } from '@/mocks/inquirySources';
 import { categoryById } from '@/mocks/productCategories';
 import { userById, users } from '@/mocks/users';
 import { followUpSchema, type FollowUpFormValues } from '@/schemas/inquiry';
+import { extractErrorMessage } from '@/services/apiClient';
+import {
+    useAssignInquiry,
+    useCreateFollowUp,
+    useCreateLineItem,
+    useInquiryActivity,
+    useInquiryFollowUps,
+    useInquiryLineItems,
+    useInquiryQuery,
+    useInquirySources,
+} from '@/hooks/useInquiries';
 import { InquiryFormDrawer } from './InquiryFormDrawer';
 import { MarkLostDialog } from './MarkLostDialog';
 import { ConvertToQuotationDialog } from './ConvertToQuotationDialog';
@@ -131,7 +143,15 @@ const FOLLOW_UP_LABEL: Record<FollowUpType, string> = {
 export default function InquiryDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const inquiry = inquiryById(id ?? '');
+    const inquiryQuery = useInquiryQuery(id ?? '');
+    const inquiry = inquiryQuery.data;
+    const lineItemsQuery = useInquiryLineItems(id ?? '');
+    const followUpsQuery = useInquiryFollowUps(id ?? '');
+    const activityQuery = useInquiryActivity(id ?? '');
+
+    const lineItems = lineItemsQuery.data ?? [];
+    const followUps = followUpsQuery.data ?? [];
+    const activity = activityQuery.data ?? [];
 
     const [tab, setTab] = useState<TabKey>('overview');
     const [editOpen, setEditOpen] = useState(false);
@@ -141,11 +161,26 @@ export default function InquiryDetailPage() {
     const [followUpOpen, setFollowUpOpen] = useState(false);
     const [addRowOpen, setAddRowOpen] = useState(false);
 
+    if (inquiryQuery.isLoading) {
+        return (
+            <div className="p-6 text-sm text-slate-500 md:p-8">Loading inquiry…</div>
+        );
+    }
+    if (inquiryQuery.isError) {
+        return (
+            <div className="p-6 md:p-8">
+                <ErrorAlert
+                    title="Could not load inquiry"
+                    description={extractErrorMessage(inquiryQuery.error)}
+                />
+            </div>
+        );
+    }
     if (!inquiry) {
         return <Navigate to="/inquiries" replace />;
     }
 
-    const totalEstimated = inquiry.lineItems.reduce(
+    const totalEstimated = lineItems.reduce(
         (sum, li) => sum + li.estimatedValue,
         0,
     );
@@ -232,13 +267,13 @@ export default function InquiryDetailPage() {
                 {TABS.map((t) => {
                     const count =
                         t.key === 'requirements'
-                            ? inquiry.lineItems.length
+                            ? lineItems.length
                             : t.key === 'follow-ups'
-                                ? inquiry.followUps.length
+                                ? followUps.length
                                 : t.key === 'activity'
-                                    ? inquiry.activity.length
+                                    ? activity.length
                                     : t.key === 'attachments'
-                                        ? inquiry.attachments.length
+                                        ? 0
                                         : null;
                     return (
                         <button
@@ -282,7 +317,7 @@ export default function InquiryDetailPage() {
 
             {tab === 'requirements' && (
                 <RequirementsTab
-                    items={inquiry.lineItems}
+                    items={lineItems}
                     totalEstimated={totalEstimated}
                     onAdd={() => setAddRowOpen(true)}
                 />
@@ -290,16 +325,14 @@ export default function InquiryDetailPage() {
 
             {tab === 'follow-ups' && (
                 <FollowUpsTab
-                    items={inquiry.followUps}
+                    items={followUps}
                     onAdd={() => setFollowUpOpen(true)}
                 />
             )}
 
-            {tab === 'activity' && <ActivityTab items={inquiry.activity} />}
+            {tab === 'activity' && <ActivityTab items={activity} />}
 
-            {tab === 'attachments' && (
-                <AttachmentsTab items={inquiry.attachments} />
-            )}
+            {tab === 'attachments' && <AttachmentsTab items={[]} />}
 
             {/* Drawers + dialogs */}
             <InquiryFormDrawer
@@ -317,6 +350,7 @@ export default function InquiryDetailPage() {
                 open={lostOpen}
                 onOpenChange={setLostOpen}
                 inquiryNumber={inquiry.inquiryNumber}
+                inquiryId={inquiry.id}
             />
             <AssignDialog
                 open={assignOpen}
@@ -326,11 +360,13 @@ export default function InquiryDetailPage() {
             <FollowUpDialog
                 open={followUpOpen}
                 onOpenChange={setFollowUpOpen}
+                inquiryId={inquiry.id}
                 inquiryNumber={inquiry.inquiryNumber}
             />
             <AddLineItemDialog
                 open={addRowOpen}
                 onOpenChange={setAddRowOpen}
+                inquiryId={inquiry.id}
             />
         </div>
     );
@@ -342,10 +378,12 @@ function OverviewTab({
     inquiry,
     totalEstimated,
 }: {
-    inquiry: NonNullable<ReturnType<typeof inquiryById>>;
+    inquiry: Inquiry;
     totalEstimated: number;
 }) {
-    const sourceName = sourceById(inquiry.sourceId)?.name ?? '—';
+    const sourcesQuery = useInquirySources();
+    const apiSource = sourcesQuery.data?.find((s) => s.id === inquiry.sourceId);
+    const sourceName = apiSource?.name ?? sourceById(inquiry.sourceId)?.name ?? '—';
     const categoryName = categoryById(inquiry.productCategoryId)?.name ?? '—';
     const assigned = userById(inquiry.assignedTo);
 
@@ -765,20 +803,31 @@ function AssignDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    inquiry: NonNullable<ReturnType<typeof inquiryById>>;
+    inquiry: Inquiry;
 }) {
     const { push } = useToast();
     const [value, setValue] = useState(inquiry.assignedTo ?? '');
+    const assignMutation = useAssignInquiry(inquiry.id);
     const salesUsers = users.filter((u) =>
         ['sales_executive', 'sales_manager'].includes(u.role),
     );
     function handleSave() {
-        push({
-            variant: 'success',
-            title: 'Inquiry reassigned',
-            description: `${inquiry.inquiryNumber} → ${userById(value)?.name ?? 'Unassigned'}`,
+        assignMutation.mutate(value || '', {
+            onSuccess: () => {
+                push({
+                    variant: 'success',
+                    title: 'Inquiry reassigned',
+                    description: `${inquiry.inquiryNumber} → ${userById(value)?.name ?? 'Unassigned'}`,
+                });
+                onOpenChange(false);
+            },
+            onError: (err) =>
+                push({
+                    variant: 'error',
+                    title: 'Reassign failed',
+                    description: extractErrorMessage(err),
+                }),
         });
-        onOpenChange(false);
     }
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -806,10 +855,15 @@ function AssignDialog({
                         type="button"
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
+                        disabled={assignMutation.isPending}
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleSave}>
+                    <Button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={assignMutation.isPending}
+                    >
                         Save
                     </Button>
                 </DialogFooter>
@@ -821,13 +875,16 @@ function AssignDialog({
 function FollowUpDialog({
     open,
     onOpenChange,
+    inquiryId,
     inquiryNumber,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    inquiryId: string;
     inquiryNumber: string;
 }) {
     const { push } = useToast();
+    const createMutation = useCreateFollowUp(inquiryId);
     const {
         register,
         handleSubmit,
@@ -844,14 +901,27 @@ function FollowUpDialog({
     });
 
     const onSubmit: SubmitHandler<FollowUpFormValues> = async (values) => {
-        await new Promise((r) => setTimeout(r, 300));
-        push({
-            variant: 'success',
-            title: 'Follow-up scheduled',
-            description: `${FOLLOW_UP_LABEL[values.followUpType]} for ${inquiryNumber}`,
-        });
-        reset();
-        onOpenChange(false);
+        try {
+            await createMutation.mutateAsync({
+                followUpType: values.followUpType,
+                scheduledAt: values.scheduledAt,
+                assignedTo: values.assignedTo,
+                outcome: values.outcome,
+            });
+            push({
+                variant: 'success',
+                title: 'Follow-up scheduled',
+                description: `${FOLLOW_UP_LABEL[values.followUpType]} for ${inquiryNumber}`,
+            });
+            reset();
+            onOpenChange(false);
+        } catch (err) {
+            push({
+                variant: 'error',
+                title: 'Schedule failed',
+                description: extractErrorMessage(err),
+            });
+        }
     };
 
     const salesUsers = users.filter((u) =>
@@ -927,7 +997,7 @@ function FollowUpDialog({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isSubmitting}>
+                        <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
                             Schedule
                         </Button>
                     </DialogFooter>
@@ -940,26 +1010,47 @@ function FollowUpDialog({
 function AddLineItemDialog({
     open,
     onOpenChange,
+    inquiryId,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    inquiryId: string;
 }) {
     const { push } = useToast();
+    const createMutation = useCreateLineItem(inquiryId);
     const [desc, setDesc] = useState('');
     const [qty, setQty] = useState('1');
     const [unit, setUnit] = useState('pcs');
 
     function handleAdd() {
         if (!desc.trim()) return;
-        push({
-            variant: 'success',
-            title: 'Line item added',
-            description: `${desc} (${qty} ${unit})`,
-        });
-        setDesc('');
-        setQty('1');
-        setUnit('pcs');
-        onOpenChange(false);
+        createMutation.mutate(
+            {
+                productDescription: desc.trim(),
+                quantity: Number(qty) || 1,
+                unit: unit || 'pcs',
+                estimatedValue: 0,
+            },
+            {
+                onSuccess: () => {
+                    push({
+                        variant: 'success',
+                        title: 'Line item added',
+                        description: `${desc} (${qty} ${unit})`,
+                    });
+                    setDesc('');
+                    setQty('1');
+                    setUnit('pcs');
+                    onOpenChange(false);
+                },
+                onError: (err) =>
+                    push({
+                        variant: 'error',
+                        title: 'Add failed',
+                        description: extractErrorMessage(err),
+                    }),
+            },
+        );
     }
 
     return (
@@ -1001,7 +1092,7 @@ function AddLineItemDialog({
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleAdd} disabled={!desc.trim()}>
+                    <Button type="button" onClick={handleAdd} disabled={!desc.trim() || createMutation.isPending}>
                         Add
                     </Button>
                 </DialogFooter>
