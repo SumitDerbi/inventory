@@ -98,10 +98,10 @@ Default seed fixtures cover the 8 numbering series, 5 email templates from mocks
 
 ## Verification
 
-- [ ] All 8 doc types have a default `NumberingSeries` row in seed fixture.
-- [ ] All 5 email templates from `frontend/src/mocks/admin-emails.ts` (or equivalent) seeded.
-- [ ] Coverage ≥ 85 %.
-- [ ] Commit: `feat(api): settings + numbering + email templates + integrations`.
+- [x] All 8 doc types have a default `NumberingSeries` row in seed fixture.
+- [x] All 5 email templates from `frontend/src/mocks/admin-emails.ts` (or equivalent) seeded.
+- [x] Coverage ≥ 85 %.
+- [x] Commit: `feat(api): settings + numbering + email templates + integrations`.
 
 ---
 

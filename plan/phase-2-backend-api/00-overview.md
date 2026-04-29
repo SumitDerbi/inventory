@@ -16,7 +16,7 @@
 | 02  | [Models + migrations (all apps)](./02-models-migrations.md)                                              | ✅      |
 | 03  | [Auth API (JWT, users, roles, permissions)](./03-auth-api.md)                                            | ✅      |
 | 04  | [Shared masters (customers, contacts, addresses, tax, attachments, notifications)](./04-masters-api.md)  | ✅      |
-| 04b | [Settings & admin config API (company, numbering, email templates, integrations)](./04b-settings-api.md) | ☐      |
+| 04b | [Settings & admin config API (company, numbering, email templates, integrations)](./04b-settings-api.md) | ✅      |
 | 04c | [Global staff search API](./04c-search-api.md)                                                           | ☐      |
 
 ### Module slices (vertical — each step delivers API + pytest + Postman + UI wiring + UI tests for that module)

@@ -16,6 +16,7 @@ def health(_request):
 api_v1_patterns = [
     path("", include("apps.customers.urls")),
     path("", include("apps.core.urls")),
+    path("", include("apps.core.settings_urls")),
     path("", include("apps.inquiries.urls")),
     path("", include("apps.inventory.urls")),
     path("", include("apps.notifications.urls")),
