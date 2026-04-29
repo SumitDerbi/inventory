@@ -164,6 +164,9 @@ class QuotationSerializer(serializers.ModelSerializer):
 
 
 class QuotationListSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.contact_person_name", read_only=True, default="")
+    company_name = serializers.CharField(source="customer.company_name", read_only=True, default="")
+
     class Meta:
         model = Quotation
         fields = (
@@ -171,6 +174,8 @@ class QuotationListSerializer(serializers.ModelSerializer):
             "quotation_number",
             "version_number",
             "customer",
+            "customer_name",
+            "company_name",
             "project_name",
             "status",
             "quotation_date",

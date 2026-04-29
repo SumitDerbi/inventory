@@ -33,7 +33,15 @@ class QuotationViewSet(AuditModelViewSet):
     queryset = Quotation.objects.select_related(
         "inquiry", "customer", "contact", "prepared_by", "approved_by"
     ).prefetch_related("items")
-    filterset_fields = ("status", "customer", "inquiry", "prepared_by", "approved_by")
+    filterset_fields = (
+        "status",
+        "customer",
+        "inquiry",
+        "prepared_by",
+        "approved_by",
+        "quotation_number",
+        "parent_quotation",
+    )
     search_fields = ("quotation_number", "project_name", "customer__company_name", "customer__contact_person_name")
     ordering_fields = ("quotation_date", "grand_total", "status", "created_at")
     ordering = ("-quotation_date", "-version_number")
@@ -158,9 +166,15 @@ class QuotationViewSet(AuditModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["post"], url_path="versions")
-    def new_version(self, request, pk=None):
+    @action(detail=True, methods=["get", "post"], url_path="versions")
+    def versions(self, request, pk=None):
         q = self.get_object()
+        if request.method == "GET":
+            siblings = (
+                Quotation.objects.filter(quotation_number=q.quotation_number)
+                .order_by("version_number")
+            )
+            return Response(QuotationListSerializer(siblings, many=True).data)
         new = services.new_version(q, user=request.user)
         return Response(self.get_serializer(new).data, status=status.HTTP_201_CREATED)
 

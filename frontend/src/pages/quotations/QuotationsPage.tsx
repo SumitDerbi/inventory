@@ -4,12 +4,14 @@ import {
     Download,
     FileSpreadsheet,
     FileText,
+    Loader2,
     Plus,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Select, Input } from '@/components/ui/FormField';
 import {
@@ -26,12 +28,9 @@ import {
     statusLabel,
     type QuotationStatus,
 } from '@/lib/quotationStatus';
-import {
-    currentVersion,
-    quotations,
-    versionTotals,
-} from '@/mocks/quotations';
-import { users, userById } from '@/mocks/users';
+import { extractErrorMessage } from '@/services/apiClient';
+import { useQuotationsQuery } from '@/hooks/useQuotations';
+import type { QuotationListItem } from '@/services/quotations';
 
 const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
     day: '2-digit',
@@ -43,58 +42,44 @@ function fmtDate(iso: string) {
     return DATE_FMT.format(new Date(iso));
 }
 
-const SALES_USERS = users.filter((u) =>
-    ['sales_executive', 'sales_manager'].includes(u.role),
-);
-
 export default function QuotationsPage() {
     const navigate = useNavigate();
     const { push } = useToast();
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<QuotationStatus | ''>('');
-    const [ownerFilter, setOwnerFilter] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [minAmount, setMinAmount] = useState('');
     const [maxAmount, setMaxAmount] = useState('');
 
+    const quotationsQuery = useQuotationsQuery({
+        search: search.trim() || undefined,
+        status: statusFilter || undefined,
+        pageSize: 100,
+        ordering: '-quotation_date',
+    });
+
+    const allRows: QuotationListItem[] = useMemo(
+        () => quotationsQuery.data?.results ?? [],
+        [quotationsQuery.data],
+    );
+
+    // Date and amount range filtering on the client (backend filterset
+    // does not yet expose these).
     const rows = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return quotations
-            .map((qt) => {
-                const v = currentVersion(qt);
-                const total = versionTotals(v).grandTotal;
-                return { qt, v, total };
-            })
-            .filter(({ qt, v, total }) => {
-                if (statusFilter && v.status !== statusFilter) return false;
-                if (ownerFilter && qt.ownerId !== ownerFilter) return false;
-                if (fromDate && new Date(qt.createdAt) < new Date(fromDate)) return false;
-                if (toDate && new Date(qt.createdAt) > new Date(toDate)) return false;
-                if (minAmount && total < Number(minAmount)) return false;
-                if (maxAmount && total > Number(maxAmount)) return false;
-                if (q) {
-                    const hay =
-                        `${qt.quotationNumber} ${qt.customerName} ${qt.companyName} ${qt.projectName}`.toLowerCase();
-                    if (!hay.includes(q)) return false;
-                }
-                return true;
-            });
-    }, [
-        search,
-        statusFilter,
-        ownerFilter,
-        fromDate,
-        toDate,
-        minAmount,
-        maxAmount,
-    ]);
+        return allRows.filter((q) => {
+            if (fromDate && new Date(q.quotationDate) < new Date(fromDate)) return false;
+            if (toDate && new Date(q.quotationDate) > new Date(toDate)) return false;
+            if (minAmount && q.grandTotal < Number(minAmount)) return false;
+            if (maxAmount && q.grandTotal > Number(maxAmount)) return false;
+            return true;
+        });
+    }, [allRows, fromDate, toDate, minAmount, maxAmount]);
 
     function reset() {
         setSearch('');
         setStatusFilter('');
-        setOwnerFilter('');
         setFromDate('');
         setToDate('');
         setMinAmount('');
@@ -109,57 +94,49 @@ export default function QuotationsPage() {
         });
     }
 
-    type Row = (typeof rows)[number];
-
-    const columns: DataTableColumn<Row>[] = [
+    const columns: DataTableColumn<QuotationListItem>[] = [
         {
             key: 'number',
             header: 'Quote #',
-            cell: ({ qt }) => (
+            cell: (q) => (
                 <Link
-                    to={`/quotations/${qt.id}`}
+                    to={`/quotations/${q.id}`}
                     onClick={(e) => e.stopPropagation()}
                     className="font-medium text-primary hover:underline"
                 >
-                    {qt.quotationNumber}
+                    {q.quotationNumber}
                 </Link>
             ),
         },
         {
             key: 'date',
             header: 'Date',
-            cell: ({ qt }) => (
-                <span className="text-slate-600">{fmtDate(qt.createdAt)}</span>
-            ),
+            cell: (q) => <span className="text-slate-600">{fmtDate(q.quotationDate)}</span>,
         },
         {
             key: 'customer',
             header: 'Customer',
-            cell: ({ qt }) => (
+            cell: (q) => (
                 <div className="min-w-0">
                     <p className="truncate font-medium text-slate-800">
-                        {qt.customerName}
+                        {q.customerName || '—'}
                     </p>
-                    <p className="truncate text-xs text-slate-500">
-                        {qt.companyName}
-                    </p>
+                    <p className="truncate text-xs text-slate-500">{q.companyName}</p>
                 </div>
             ),
         },
         {
             key: 'project',
             header: 'Project',
-            cell: ({ qt }) => (
-                <span className="text-slate-600">{qt.projectName}</span>
-            ),
+            cell: (q) => <span className="text-slate-600">{q.projectName || '—'}</span>,
         },
         {
             key: 'version',
             header: 'Ver.',
             align: 'center',
-            cell: ({ qt }) => (
+            cell: (q) => (
                 <span className="inline-flex min-w-[2rem] justify-center rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
-                    v{qt.currentVersion}
+                    v{q.versionNumber}
                 </span>
             ),
         },
@@ -167,37 +144,26 @@ export default function QuotationsPage() {
             key: 'total',
             header: 'Total',
             align: 'right',
-            cell: ({ total }) => (
-                <span className="font-semibold text-slate-800">
-                    {formatINR(total)}
-                </span>
+            cell: (q) => (
+                <span className="font-semibold text-slate-800">{formatINR(q.grandTotal)}</span>
             ),
         },
         {
             key: 'status',
             header: 'Status',
-            cell: ({ v }) => <StatusBadge status={statusLabel(v.status)} />,
+            cell: (q) => <StatusBadge status={statusLabel(q.status)} />,
         },
         {
             key: 'validity',
             header: 'Valid until',
-            cell: ({ v }) => {
-                const expired = new Date(v.validUntil).getTime() < Date.now();
+            cell: (q) => {
+                const expired = new Date(q.validUntil).getTime() < Date.now();
                 return (
                     <span className={expired ? 'text-red-600' : 'text-slate-600'}>
-                        {fmtDate(v.validUntil)}
+                        {fmtDate(q.validUntil)}
                     </span>
                 );
             },
-        },
-        {
-            key: 'owner',
-            header: 'Owner',
-            cell: ({ qt }) => (
-                <span className="text-slate-600">
-                    {userById(qt.ownerId)?.name ?? '—'}
-                </span>
-            ),
         },
     ];
 
@@ -241,19 +207,6 @@ export default function QuotationsPage() {
                             {QUOTATION_STATUSES.map((s) => (
                                 <option key={s} value={s}>
                                     {statusLabel(s)}
-                                </option>
-                            ))}
-                        </Select>
-                        <Select
-                            aria-label="Owner"
-                            value={ownerFilter}
-                            onChange={(e) => setOwnerFilter(e.target.value)}
-                            className="w-44"
-                        >
-                            <option value="">All owners</option>
-                            {SALES_USERS.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.name}
                                 </option>
                             ))}
                         </Select>
@@ -319,21 +272,38 @@ export default function QuotationsPage() {
                 }
             />
 
-            <DataTable<Row>
-                columns={columns}
-                rows={rows}
-                rowKey={(r) => r.qt.id}
-                onRowClick={(r: Row) => navigate(`/quotations/${r.qt.id}`)}
-                caption="Quotations"
-                emptyState={
-                    <div className="px-6 py-16 text-center text-sm text-slate-500">
-                        No quotations match the current filters.
-                    </div>
-                }
-            />
+            {quotationsQuery.isError ? (
+                <ErrorAlert
+                    title="Could not load quotations"
+                    description={extractErrorMessage(
+                        quotationsQuery.error,
+                        'Please try again.',
+                    )}
+                />
+            ) : (
+                <DataTable<QuotationListItem>
+                    columns={columns}
+                    rows={rows}
+                    rowKey={(q) => q.id}
+                    onRowClick={(q) => navigate(`/quotations/${q.id}`)}
+                    caption="Quotations"
+                    emptyState={
+                        quotationsQuery.isLoading ? (
+                            <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-slate-500">
+                                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                                Loading quotations…
+                            </div>
+                        ) : (
+                            <div className="px-6 py-16 text-center text-sm text-slate-500">
+                                No quotations match the current filters.
+                            </div>
+                        )
+                    }
+                />
+            )}
 
             <p className="mt-3 text-xs text-slate-500">
-                Showing {rows.length} of {quotations.length} quotations.
+                Showing {rows.length} of {quotationsQuery.data?.count ?? 0} quotations.
             </p>
         </div>
     );

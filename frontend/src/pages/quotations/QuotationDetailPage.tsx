@@ -6,16 +6,12 @@ import {
     CheckCircle2,
     ChevronDown,
     Copy,
-    Download,
-    History,
+    GitBranch,
     Loader2,
     Mail,
-    MailCheck,
     MessageSquare,
-    Pencil,
     Phone,
     Plus,
-    Printer,
     Send,
     ShieldCheck,
     Trash2,
@@ -25,11 +21,11 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
@@ -42,18 +38,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/Dialog';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
-} from '@/components/ui/Sheet';
-import {
-    FormField,
-    Input,
-    Textarea,
-} from '@/components/ui/FormField';
+import { FormField, Input, Textarea } from '@/components/ui/FormField';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
 import { formatINR, formatRelative } from '@/lib/format';
@@ -64,23 +49,36 @@ import {
     canReject,
     canSend,
     isTerminal,
-    requiresVersionBump,
     statusLabel,
 } from '@/lib/quotationStatus';
+import { extractErrorMessage } from '@/services/apiClient';
 import {
-    currentVersion,
-    lineTotals,
-    quotationById,
-    versionTotals,
-    type Quotation,
-    type QuotationApprovalStep,
-    type QuotationCommunication,
-    type QuotationLineItem,
-    type QuotationVersion,
-} from '@/mocks/quotations';
-import { products } from '@/mocks/products';
-import { termsTemplateById, termsTemplates } from '@/mocks/termsTemplates';
-import { userById } from '@/mocks/users';
+    useApproveQuotation,
+    useCloneQuotation,
+    useConvertQuotationToOrder,
+    useCreateQuotationItem,
+    useDeleteQuotationItem,
+    useNewQuotationVersion,
+    useQuotationActivity,
+    useQuotationApprovalSteps,
+    useQuotationCommunications,
+    useQuotationItems,
+    useQuotationQuery,
+    useQuotationVersions,
+    useRejectQuotation,
+    useSendQuotation,
+    useSubmitQuotationApproval,
+    useUpdateQuotation,
+    useUpdateQuotationItem,
+} from '@/hooks/useQuotations';
+import type {
+    Quotation,
+    QuotationApprovalStep,
+    QuotationCommunication,
+    QuotationItem,
+    QuotationItemWritePayload,
+    QuotationListItem,
+} from '@/services/quotations';
 
 type TabKey =
     | 'line-items'
@@ -88,6 +86,7 @@ type TabKey =
     | 'terms'
     | 'approvals'
     | 'communications'
+    | 'activity'
     | 'versions';
 
 const TABS: Array<{ key: TabKey; label: string }> = [
@@ -96,6 +95,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
     { key: 'terms', label: 'Terms & Conditions' },
     { key: 'approvals', label: 'Approvals' },
     { key: 'communications', label: 'Communications' },
+    { key: 'activity', label: 'Activity' },
     { key: 'versions', label: 'Versions' },
 ];
 
@@ -126,93 +126,68 @@ export default function QuotationDetailPage() {
     const navigate = useNavigate();
     const { push } = useToast();
 
-    const quotation = quotationById(id ?? '');
+    const quotationQuery = useQuotationQuery(id);
+    const itemsQuery = useQuotationItems(id);
+    const approvalsQuery = useQuotationApprovalSteps(id);
+    const commsQuery = useQuotationCommunications(id);
+    const activityQuery = useQuotationActivity(id);
+    const versionsQuery = useQuotationVersions(id);
+
+    const updateQuotation = useUpdateQuotation(id ?? '');
+    const submitApproval = useSubmitQuotationApproval(id ?? '');
+    const approveMut = useApproveQuotation(id ?? '');
+    const rejectMut = useRejectQuotation(id ?? '');
+    const sendMut = useSendQuotation(id ?? '');
+    const cloneMut = useCloneQuotation();
+    const newVersionMut = useNewQuotationVersion(id ?? '');
+    const convertMut = useConvertQuotationToOrder(id ?? '');
 
     const [tab, setTab] = useState<TabKey>('line-items');
-    const [versionNumber, setVersionNumber] = useState<number | null>(null);
-    const [lineItems, setLineItems] = useState<QuotationLineItem[] | null>(null);
-    const [productPickerOpen, setProductPickerOpen] = useState(false);
     const [sendOpen, setSendOpen] = useState(false);
-    const [pdfOpen, setPdfOpen] = useState(false);
-    const [versionBumpOpen, setVersionBumpOpen] = useState(false);
+    const [rejectOpen, setRejectOpen] = useState(false);
+    const [itemDialog, setItemDialog] = useState<{
+        mode: 'add' | 'edit';
+        item: QuotationItem | null;
+    } | null>(null);
 
-    if (!quotation) {
+    if (!id) {
         return <Navigate to="/quotations" replace />;
     }
 
-    const selectedVersion: QuotationVersion =
-        quotation.versions.find((v) => v.version === versionNumber) ??
-        currentVersion(quotation);
-    const isLatest = selectedVersion.version === quotation.currentVersion;
-    const isReadOnly = !isLatest || isTerminal(selectedVersion.status);
-    const editableItems =
-        lineItems && isLatest && !isTerminal(selectedVersion.status)
-            ? lineItems
-            : selectedVersion.lineItems;
-
-    const totals = versionTotals({
-        ...selectedVersion,
-        lineItems: editableItems,
-    });
-
-    const owner = userById(quotation.ownerId);
-
-    function handleEditAttempt() {
-        if (requiresVersionBump(selectedVersion.status)) {
-            setVersionBumpOpen(true);
-            return;
-        }
-        push({
-            variant: 'info',
-            title: 'Editing enabled',
-            description: 'You can now modify line items below.',
-        });
-    }
-
-    function updateItem(itemId: string, patch: Partial<QuotationLineItem>) {
-        const base = editableItems.map((li) =>
-            li.id === itemId ? { ...li, ...patch } : li,
+    if (quotationQuery.isError) {
+        return (
+            <div className="p-6 md:p-8">
+                <BackLink onBack={() => navigate('/quotations')} />
+                <ErrorAlert
+                    title="Could not load quotation"
+                    description={extractErrorMessage(
+                        quotationQuery.error,
+                        'Please try again.',
+                    )}
+                />
+            </div>
         );
-        setLineItems(base);
     }
 
-    function removeItem(itemId: string) {
-        setLineItems(editableItems.filter((li) => li.id !== itemId));
+    if (quotationQuery.isLoading || !quotationQuery.data) {
+        return (
+            <div className="p-6 md:p-8">
+                <BackLink onBack={() => navigate('/quotations')} />
+                <div className="flex items-center gap-2 px-2 py-16 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Loading quotation…
+                </div>
+            </div>
+        );
     }
 
-    function addProduct(productId: string) {
-        const p = products.find((x) => x.id === productId);
-        if (!p) return;
-        const newItem: QuotationLineItem = {
-            id: `li-new-${Math.random().toString(36).slice(2, 8)}`,
-            productId: p.id,
-            description: p.name,
-            specNotes: '',
-            quantity: 1,
-            uom: p.uom,
-            listPrice: p.listPrice,
-            discountPercent: 0,
-            taxRate: p.taxRate,
-        };
-        setLineItems([...editableItems, newItem]);
-        setProductPickerOpen(false);
-        push({
-            variant: 'success',
-            title: 'Product added',
-            description: p.name,
-        });
-    }
+    const quotation = quotationQuery.data;
+    const items = itemsQuery.data ?? quotation.items;
+    const readOnly = isTerminal(quotation.status);
 
     return (
         <div className="p-6 md:p-8">
-            <button
-                type="button"
-                onClick={() => navigate('/quotations')}
-                className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
-            >
-                <ArrowLeft className="size-3.5" aria-hidden="true" />
-                Back to quotations
-            </button>
+            <BackLink onBack={() => navigate('/quotations')} />
 
             {/* Header */}
             <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -221,33 +196,44 @@ export default function QuotationDetailPage() {
                         <h1 className="text-xl font-semibold text-slate-800 md:text-2xl">
                             {quotation.quotationNumber}
                         </h1>
-                        <VersionSwitcher
-                            quotation={quotation}
-                            selected={selectedVersion.version}
-                            onChange={(v) => {
-                                setVersionNumber(v);
-                                setLineItems(null);
-                            }}
-                        />
-                        <StatusBadge status={statusLabel(selectedVersion.status)} />
-                        {!isLatest && (
-                            <Badge tone="neutral">Historical version</Badge>
+                        <Badge tone="neutral">v{quotation.versionNumber}</Badge>
+                        <StatusBadge status={statusLabel(quotation.status)} />
+                        {quotation.parentQuotationId && (
+                            <Badge tone="blue">Revision</Badge>
                         )}
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
-                        {quotation.customerName} · {quotation.companyName} ·{' '}
-                        {quotation.projectName} · Owner {owner?.name ?? '—'}
+                        Customer #{quotation.customerId} · {quotation.projectName || '—'} ·
+                        Owner #{quotation.preparedBy ?? '—'}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => setPdfOpen(true)}
-                    >
-                        <Printer className="size-4" aria-hidden="true" />
-                        PDF preview
-                    </Button>
-                    {canSend(selectedVersion.status) && isLatest && (
+                    {quotation.status === 'draft' && (
+                        <Button
+                            variant="outline"
+                            disabled={submitApproval.isPending}
+                            onClick={async () => {
+                                try {
+                                    await submitApproval.mutateAsync();
+                                    push({
+                                        variant: 'success',
+                                        title: 'Submitted for approval',
+                                        description: quotation.quotationNumber,
+                                    });
+                                } catch (e) {
+                                    push({
+                                        variant: 'error',
+                                        title: 'Submit failed',
+                                        description: extractErrorMessage(e),
+                                    });
+                                }
+                            }}
+                        >
+                            <ShieldCheck className="size-4" aria-hidden="true" />
+                            Submit approval
+                        </Button>
+                    )}
+                    {canSend(quotation.status) && (
                         <Button onClick={() => setSendOpen(true)}>
                             <Send className="size-4" aria-hidden="true" />
                             Send
@@ -261,53 +247,59 @@ export default function QuotationDetailPage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleEditAttempt}>
-                                <Pencil className="size-4" aria-hidden="true" />
-                                Edit line items
-                            </DropdownMenuItem>
-                            {canApprove(selectedVersion.status) && (
+                            {canApprove(quotation.status) && (
                                 <DropdownMenuItem
-                                    onSelect={() =>
-                                        push({
-                                            variant: 'success',
-                                            title: 'Quotation approved',
-                                            description: quotation.quotationNumber,
-                                        })
-                                    }
+                                    onSelect={async () => {
+                                        try {
+                                            await approveMut.mutateAsync(undefined);
+                                            push({
+                                                variant: 'success',
+                                                title: 'Approved',
+                                                description: quotation.quotationNumber,
+                                            });
+                                        } catch (e) {
+                                            push({
+                                                variant: 'error',
+                                                title: 'Approve failed',
+                                                description: extractErrorMessage(e),
+                                            });
+                                        }
+                                    }}
                                 >
                                     <ShieldCheck className="size-4" aria-hidden="true" />
                                     Approve
                                 </DropdownMenuItem>
                             )}
-                            {canReject(selectedVersion.status) && (
+                            {canReject(quotation.status) && (
                                 <DropdownMenuItem
                                     destructive
-                                    onSelect={() =>
-                                        push({
-                                            variant: 'warning',
-                                            title: 'Quotation rejected',
-                                            description: quotation.quotationNumber,
-                                        })
-                                    }
+                                    onSelect={() => setRejectOpen(true)}
                                 >
                                     <XCircle className="size-4" aria-hidden="true" />
                                     Reject
                                 </DropdownMenuItem>
                             )}
-                            {canConvertToOrder(selectedVersion.status) && isLatest && (
+                            {canConvertToOrder(quotation.status) && (
                                 <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                        onSelect={() => {
-                                            const orderId = `SO-2026-${String(
-                                                Math.floor(Math.random() * 900) + 100,
-                                            )}`;
-                                            push({
-                                                variant: 'success',
-                                                title: 'Sales order created',
-                                                description: `${orderId} draft generated from ${quotation.quotationNumber}.`,
-                                            });
-                                            navigate('/orders');
+                                        onSelect={async () => {
+                                            try {
+                                                const result =
+                                                    await convertMut.mutateAsync();
+                                                push({
+                                                    variant: 'success',
+                                                    title: 'Sales order created',
+                                                    description: result.orderNumber,
+                                                });
+                                                navigate('/orders');
+                                            } catch (e) {
+                                                push({
+                                                    variant: 'error',
+                                                    title: 'Convert failed',
+                                                    description: extractErrorMessage(e),
+                                                });
+                                            }
                                         }}
                                     >
                                         <ArrowRight className="size-4" aria-hidden="true" />
@@ -315,15 +307,48 @@ export default function QuotationDetailPage() {
                                     </DropdownMenuItem>
                                 </>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onSelect={async () => {
+                                    try {
+                                        await newVersionMut.mutateAsync();
+                                        push({
+                                            variant: 'success',
+                                            title: 'New version created',
+                                            description: 'Reload the quotations list to see the latest draft.',
+                                        });
+                                        navigate('/quotations');
+                                    } catch (e) {
+                                        push({
+                                            variant: 'error',
+                                            title: 'New version failed',
+                                            description: extractErrorMessage(e),
+                                        });
+                                    }
+                                }}
+                            >
+                                <GitBranch className="size-4" aria-hidden="true" />
+                                New version
+                            </DropdownMenuItem>
                             {canClone() && (
                                 <DropdownMenuItem
-                                    onSelect={() =>
-                                        push({
-                                            variant: 'info',
-                                            title: 'Quotation cloned',
-                                            description: `A new draft was created from ${quotation.quotationNumber}.`,
-                                        })
-                                    }
+                                    onSelect={async () => {
+                                        try {
+                                            const cloned = await cloneMut.mutateAsync(quotation.id);
+                                            push({
+                                                variant: 'success',
+                                                title: 'Cloned',
+                                                description: cloned.quotationNumber,
+                                            });
+                                            navigate(`/quotations/${cloned.id}`);
+                                        } catch (e) {
+                                            push({
+                                                variant: 'error',
+                                                title: 'Clone failed',
+                                                description: extractErrorMessage(e),
+                                            });
+                                        }
+                                    }}
                                 >
                                     <Copy className="size-4" aria-hidden="true" />
                                     Clone
@@ -336,16 +361,16 @@ export default function QuotationDetailPage() {
 
             {/* Totals strip */}
             <div className="mb-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-4">
-                <Stat label="Subtotal" value={formatINR(totals.subtotal)} />
+                <Stat label="Subtotal" value={formatINR(quotation.subtotal)} />
                 <Stat
                     label="Discount"
-                    value={`− ${formatINR(totals.discount)}`}
+                    value={`− ${formatINR(quotation.totalDiscount)}`}
                     valueClassName="text-amber-700"
                 />
-                <Stat label="Tax" value={formatINR(totals.tax)} />
+                <Stat label="Tax" value={formatINR(quotation.totalTax)} />
                 <Stat
                     label="Grand total"
-                    value={formatINR(totals.grandTotal)}
+                    value={formatINR(quotation.grandTotal)}
                     valueClassName="text-slate-900 text-lg"
                 />
             </div>
@@ -359,14 +384,16 @@ export default function QuotationDetailPage() {
                 {TABS.map((t) => {
                     const count =
                         t.key === 'line-items'
-                            ? editableItems.length
+                            ? items.length
                             : t.key === 'approvals'
-                                ? selectedVersion.approvals.length
+                                ? approvalsQuery.data?.length ?? null
                                 : t.key === 'communications'
-                                    ? selectedVersion.communications.length
-                                    : t.key === 'versions'
-                                        ? quotation.versions.length
-                                        : null;
+                                    ? commsQuery.data?.length ?? null
+                                    : t.key === 'activity'
+                                        ? activityQuery.data?.length ?? null
+                                        : t.key === 'versions'
+                                            ? versionsQuery.data?.length ?? null
+                                            : null;
                     return (
                         <button
                             key={t.key}
@@ -401,124 +428,95 @@ export default function QuotationDetailPage() {
 
             {tab === 'line-items' && (
                 <LineItemsTab
-                    items={editableItems}
-                    readOnly={isReadOnly}
-                    onUpdate={updateItem}
-                    onRemove={removeItem}
-                    onAdd={() => {
-                        if (requiresVersionBump(selectedVersion.status) && isLatest) {
-                            setVersionBumpOpen(true);
-                            return;
-                        }
-                        setProductPickerOpen(true);
-                    }}
-                    totals={totals}
-                    freight={selectedVersion.freight}
-                    installation={selectedVersion.installationCharge}
+                    quotationId={quotation.id}
+                    items={items}
+                    readOnly={readOnly}
+                    loading={itemsQuery.isLoading}
+                    quotation={quotation}
+                    onAdd={() => setItemDialog({ mode: 'add', item: null })}
+                    onEdit={(item) => setItemDialog({ mode: 'edit', item })}
                 />
             )}
 
             {tab === 'commercials' && (
-                <CommercialsTab version={selectedVersion} readOnly={isReadOnly} />
+                <CommercialsTab quotation={quotation} update={updateQuotation} readOnly={readOnly} />
             )}
 
             {tab === 'terms' && (
-                <TermsTab version={selectedVersion} readOnly={isReadOnly} />
+                <TermsTab quotation={quotation} update={updateQuotation} readOnly={readOnly} />
             )}
 
             {tab === 'approvals' && (
-                <ApprovalsTab approvals={selectedVersion.approvals} />
+                <ApprovalsTab
+                    steps={approvalsQuery.data ?? []}
+                    loading={approvalsQuery.isLoading}
+                />
             )}
 
             {tab === 'communications' && (
                 <CommunicationsTab
-                    items={selectedVersion.communications}
+                    items={commsQuery.data ?? []}
+                    loading={commsQuery.isLoading}
                     onCompose={() => setSendOpen(true)}
+                    canSend={canSend(quotation.status)}
+                />
+            )}
+
+            {tab === 'activity' && (
+                <ActivityTab
+                    items={activityQuery.data ?? []}
+                    loading={activityQuery.isLoading}
                 />
             )}
 
             {tab === 'versions' && (
                 <VersionsTab
-                    quotation={quotation}
-                    selected={selectedVersion.version}
-                    onSelect={(v) => {
-                        setVersionNumber(v);
-                        setLineItems(null);
-                        setTab('line-items');
-                    }}
+                    versions={versionsQuery.data ?? []}
+                    currentId={quotation.id}
+                    loading={versionsQuery.isLoading}
+                    onOpen={(vid) => navigate(`/quotations/${vid}`)}
                 />
             )}
 
-            {/* Dialogs / drawers */}
-            <ProductPickerDialog
-                open={productPickerOpen}
-                onOpenChange={setProductPickerOpen}
-                onPick={addProduct}
-            />
-            <SendEmailDialog
-                open={sendOpen}
-                onOpenChange={setSendOpen}
-                quotation={quotation}
-                version={selectedVersion}
-            />
-            <VersionBumpDialog
-                open={versionBumpOpen}
-                onOpenChange={setVersionBumpOpen}
-                quotation={quotation}
-                version={selectedVersion}
-            />
-            <PdfPreviewSheet
-                open={pdfOpen}
-                onOpenChange={setPdfOpen}
-                quotation={quotation}
-                version={selectedVersion}
-                totals={totals}
-            />
+            {/* Dialogs */}
+            {sendOpen && (
+                <SendDialog
+                    onClose={() => setSendOpen(false)}
+                    quotation={quotation}
+                    send={sendMut}
+                />
+            )}
+            {rejectOpen && (
+                <RejectDialog
+                    onClose={() => setRejectOpen(false)}
+                    quotationNumber={quotation.quotationNumber}
+                    reject={rejectMut}
+                />
+            )}
+            {itemDialog && (
+                <ItemDialog
+                    quotationId={quotation.id}
+                    mode={itemDialog.mode}
+                    initial={itemDialog.item}
+                    onClose={() => setItemDialog(null)}
+                />
+            )}
         </div>
     );
 }
 
-/* --------------------------- Version switcher --------------------------- */
+/* ============================== Sub-components ============================== */
 
-function VersionSwitcher({
-    quotation,
-    selected,
-    onChange,
-}: {
-    quotation: Quotation;
-    selected: number;
-    onChange: (v: number) => void;
-}) {
+function BackLink({ onBack }: { onBack: () => void }) {
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                    <History className="size-3" aria-hidden="true" />v{selected} of{' '}
-                    {quotation.versions.length}
-                    <ChevronDown className="size-3" aria-hidden="true" />
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Versions</DropdownMenuLabel>
-                {[...quotation.versions]
-                    .sort((a, b) => b.version - a.version)
-                    .map((v) => (
-                        <DropdownMenuItem
-                            key={v.version}
-                            onSelect={() => onChange(v.version)}
-                        >
-                            <span className="font-semibold">v{v.version}</span>
-                            <span className="text-xs text-slate-500">
-                                {fmtDate(v.createdAt)}
-                            </span>
-                            <StatusBadge status={statusLabel(v.status)} />
-                        </DropdownMenuItem>
-                    ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+            type="button"
+            onClick={onBack}
+            className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            Back to quotations
+        </button>
     );
 }
 
@@ -527,22 +525,23 @@ function VersionSwitcher({
 function LineItemsTab({
     items,
     readOnly,
-    onUpdate,
-    onRemove,
+    loading,
+    quotation,
     onAdd,
-    totals,
-    freight,
-    installation,
+    onEdit,
+    quotationId,
 }: {
-    items: QuotationLineItem[];
+    items: QuotationItem[];
     readOnly: boolean;
-    onUpdate: (id: string, patch: Partial<QuotationLineItem>) => void;
-    onRemove: (id: string) => void;
+    loading: boolean;
+    quotation: Quotation;
     onAdd: () => void;
-    totals: ReturnType<typeof versionTotals>;
-    freight: number;
-    installation: number;
+    onEdit: (item: QuotationItem) => void;
+    quotationId: string;
 }) {
+    const { push } = useToast();
+    const deleteItemMut = useDeleteQuotationItem(quotationId);
+
     return (
         <Card
             title={`Line items (${items.length})`}
@@ -550,119 +549,143 @@ function LineItemsTab({
                 !readOnly && (
                     <Button size="sm" onClick={onAdd}>
                         <Plus className="size-4" aria-hidden="true" />
-                        Add product
+                        Add line
                     </Button>
                 )
             }
         >
-            {items.length === 0 ? (
+            {loading ? (
+                <div className="flex items-center gap-2 px-2 py-8 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Loading…
+                </div>
+            ) : items.length === 0 ? (
                 <EmptyState
                     title="No line items"
-                    description="Add products from the catalogue to build this quotation."
+                    description="Add the products and services that make up this quotation."
                 />
             ) : (
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                             <tr>
-                                <th className="px-3 py-2 text-left font-semibold">Product</th>
+                                <th className="px-3 py-2 text-left font-semibold">Description</th>
                                 <th className="px-3 py-2 text-right font-semibold">Qty</th>
-                                <th className="px-3 py-2 text-left font-semibold">UoM</th>
-                                <th className="px-3 py-2 text-right font-semibold">List ₹</th>
+                                <th className="px-3 py-2 text-left font-semibold">Unit</th>
+                                <th className="px-3 py-2 text-right font-semibold">Price</th>
                                 <th className="px-3 py-2 text-right font-semibold">Disc %</th>
-                                <th className="px-3 py-2 text-right font-semibold">Net ₹</th>
-                                <th className="px-3 py-2 text-right font-semibold">Tax %</th>
-                                <th className="px-3 py-2 text-right font-semibold">Total ₹</th>
+                                <th className="px-3 py-2 text-right font-semibold">Tax</th>
+                                <th className="px-3 py-2 text-right font-semibold">Total</th>
                                 {!readOnly && <th className="px-3 py-2" />}
                             </tr>
                         </thead>
                         <tbody>
-                            {items.map((li) => {
-                                const t = lineTotals(li);
-                                return (
-                                    <tr
-                                        key={li.id}
-                                        className="border-t border-slate-100 align-top"
-                                    >
-                                        <td className="px-3 py-2">
-                                            <p className="font-medium text-slate-800">
-                                                {li.description}
+                            {items.map((it) => (
+                                <tr
+                                    key={it.id}
+                                    className="border-t border-slate-100 align-top"
+                                >
+                                    <td className="px-3 py-2">
+                                        <p className="font-medium text-slate-800">
+                                            {it.productDescription}
+                                        </p>
+                                        {(it.productCode || it.brand || it.modelNumber) && (
+                                            <p className="text-xs text-slate-500">
+                                                {[it.productCode, it.brand, it.modelNumber]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
                                             </p>
-                                            {li.specNotes && (
-                                                <p className="text-xs text-slate-500">
-                                                    {li.specNotes}
-                                                </p>
-                                            )}
-                                        </td>
+                                        )}
+                                        {it.specifications && (
+                                            <p className="text-xs text-slate-500">
+                                                {it.specifications}
+                                            </p>
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {it.quantity}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-600">{it.unit}</td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {formatINR(it.unitPrice)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {it.discountPercent}%
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {formatINR(it.taxAmount)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-semibold text-slate-800">
+                                        {formatINR(it.lineTotal)}
+                                    </td>
+                                    {!readOnly && (
                                         <td className="px-3 py-2 text-right">
-                                            <CellNumber
-                                                value={li.quantity}
-                                                readOnly={readOnly}
-                                                onChange={(n) =>
-                                                    onUpdate(li.id, { quantity: Math.max(1, n) })
-                                                }
-                                            />
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-600">{li.uom}</td>
-                                        <td className="px-3 py-2 text-right text-slate-600">
-                                            {formatINR(li.listPrice)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right">
-                                            <CellNumber
-                                                value={li.discountPercent}
-                                                readOnly={readOnly}
-                                                step={0.5}
-                                                onChange={(n) =>
-                                                    onUpdate(li.id, {
-                                                        discountPercent: Math.min(
-                                                            100,
-                                                            Math.max(0, n),
-                                                        ),
-                                                    })
-                                                }
-                                            />
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-slate-600">
-                                            {formatINR(t.netPrice)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-slate-600">
-                                            {li.taxRate}
-                                        </td>
-                                        <td className="px-3 py-2 text-right font-semibold text-slate-800">
-                                            {formatINR(t.total)}
-                                        </td>
-                                        {!readOnly && (
-                                            <td className="px-3 py-2 text-right">
+                                            <div className="flex items-center justify-end gap-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => onRemove(li.id)}
-                                                    className="text-slate-400 hover:text-red-600"
+                                                    onClick={() => onEdit(it)}
+                                                    className="text-xs text-slate-500 hover:text-primary"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     aria-label="Remove line"
+                                                    disabled={deleteItemMut.isPending}
+                                                    onClick={async () => {
+                                                        if (
+                                                            !window.confirm(
+                                                                'Remove this line item?',
+                                                            )
+                                                        ) {
+                                                            return;
+                                                        }
+                                                        try {
+                                                            await deleteItemMut.mutateAsync(
+                                                                it.id,
+                                                            );
+                                                            push({
+                                                                variant: 'success',
+                                                                title: 'Line removed',
+                                                            });
+                                                        } catch (e) {
+                                                            push({
+                                                                variant: 'error',
+                                                                title: 'Remove failed',
+                                                                description:
+                                                                    extractErrorMessage(e),
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="text-slate-400 hover:text-red-600"
                                                 >
                                                     <Trash2
                                                         className="size-4"
                                                         aria-hidden="true"
                                                     />
                                                 </button>
-                                            </td>
-                                        )}
-                                    </tr>
-                                );
-                            })}
+                                            </div>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
                         </tbody>
                         <tfoot className="text-sm">
-                            <FooterRow label="Subtotal" value={totals.subtotal} />
+                            <FooterRow label="Subtotal" value={quotation.subtotal} />
                             <FooterRow
                                 label="Discount"
-                                value={-totals.discount}
+                                value={-quotation.totalDiscount}
                                 tone="amber"
                             />
-                            <FooterRow label="Tax" value={totals.tax} />
-                            <FooterRow label="Freight" value={freight} />
-                            <FooterRow label="Installation" value={installation} />
+                            <FooterRow label="Tax" value={quotation.totalTax} />
+                            <FooterRow label="Freight" value={quotation.freightAmount} />
+                            <FooterRow
+                                label="Other charges"
+                                value={quotation.otherCharges}
+                            />
                             <FooterRow
                                 label="Grand total"
-                                value={totals.grandTotal}
+                                value={quotation.grandTotal}
                                 bold
                             />
                         </tfoot>
@@ -670,36 +693,6 @@ function LineItemsTab({
                 </div>
             )}
         </Card>
-    );
-}
-
-function CellNumber({
-    value,
-    readOnly,
-    onChange,
-    step = 1,
-}: {
-    value: number;
-    readOnly: boolean;
-    onChange: (n: number) => void;
-    step?: number;
-}) {
-    if (readOnly) {
-        return <span className="text-slate-600">{value}</span>;
-    }
-    return (
-        <input
-            type="number"
-            inputMode="decimal"
-            step={step}
-            min={0}
-            value={value}
-            onChange={(e) => {
-                const n = Number(e.target.value);
-                if (!Number.isNaN(n)) onChange(n);
-            }}
-            className="w-20 rounded-md border border-slate-200 px-2 py-1 text-right text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-        />
     );
 }
 
@@ -717,12 +710,10 @@ function FooterRow({
     return (
         <tr className="border-t border-slate-100 bg-slate-50/40">
             <td
-                colSpan={7}
+                colSpan={6}
                 className={cn(
                     'px-3 py-1.5 text-right text-xs uppercase tracking-wide',
-                    bold
-                        ? 'text-slate-700 font-semibold'
-                        : 'text-slate-500',
+                    bold ? 'text-slate-700 font-semibold' : 'text-slate-500',
                 )}
             >
                 {label}
@@ -732,9 +723,7 @@ function FooterRow({
                 className={cn(
                     'px-3 py-1.5 text-right',
                     tone === 'amber' && 'text-amber-700',
-                    bold
-                        ? 'text-base font-semibold text-slate-900'
-                        : 'text-slate-700',
+                    bold ? 'text-base font-semibold text-slate-900' : 'text-slate-700',
                 )}
             >
                 {formatINR(value)}
@@ -746,53 +735,136 @@ function FooterRow({
 /* ---------------------------- Commercials ---------------------------- */
 
 function CommercialsTab({
-    version,
+    quotation,
+    update,
     readOnly,
 }: {
-    version: QuotationVersion;
+    quotation: Quotation;
+    update: ReturnType<typeof useUpdateQuotation>;
     readOnly: boolean;
 }) {
+    const { push } = useToast();
+    const [form, setForm] = useState({
+        quotationDate: quotation.quotationDate,
+        validUntil: quotation.validUntil,
+        freightAmount: quotation.freightAmount,
+        otherCharges: quotation.otherCharges,
+        currency: quotation.currency,
+        siteAddress: quotation.siteAddress,
+        projectName: quotation.projectName,
+    });
+
+    async function save() {
+        try {
+            await update.mutateAsync({
+                quotationDate: form.quotationDate,
+                validUntil: form.validUntil,
+                freightAmount: Number(form.freightAmount) || 0,
+                otherCharges: Number(form.otherCharges) || 0,
+                currency: form.currency,
+                siteAddress: form.siteAddress,
+                projectName: form.projectName,
+            });
+            push({ variant: 'success', title: 'Saved' });
+        } catch (e) {
+            push({
+                variant: 'error',
+                title: 'Save failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
+
     return (
-        <Card title="Commercial details">
+        <Card
+            title="Commercial details"
+            actions={
+                !readOnly && (
+                    <Button size="sm" onClick={save} disabled={update.isPending}>
+                        Save
+                    </Button>
+                )
+            }
+        >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <FormField label="Payment terms">
-                    <Textarea
-                        defaultValue={version.paymentTerms}
-                        rows={2}
+                <FormField label="Project name">
+                    <Input
+                        value={form.projectName}
                         readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, projectName: e.target.value }))
+                        }
                     />
                 </FormField>
-                <FormField label="Delivery period">
-                    <Input defaultValue={version.deliveryPeriod} readOnly={readOnly} />
+                <FormField label="Currency">
+                    <Input
+                        value={form.currency}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, currency: e.target.value }))
+                        }
+                    />
                 </FormField>
-                <FormField label="Warranty">
-                    <Input defaultValue={version.warranty} readOnly={readOnly} />
+                <FormField label="Quotation date">
+                    <Input
+                        type="date"
+                        value={form.quotationDate.slice(0, 10)}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, quotationDate: e.target.value }))
+                        }
+                    />
                 </FormField>
                 <FormField label="Valid until">
                     <Input
                         type="date"
-                        defaultValue={version.validUntil.slice(0, 10)}
+                        value={form.validUntil.slice(0, 10)}
                         readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, validUntil: e.target.value }))
+                        }
                     />
                 </FormField>
                 <FormField label="Freight (₹)">
                     <Input
                         type="number"
-                        defaultValue={version.freight}
+                        value={form.freightAmount}
                         readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({
+                                ...p,
+                                freightAmount: Number(e.target.value),
+                            }))
+                        }
                     />
                 </FormField>
-                <FormField label="Installation (₹)">
+                <FormField label="Other charges (₹)">
                     <Input
                         type="number"
-                        defaultValue={version.installationCharge}
+                        value={form.otherCharges}
                         readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({
+                                ...p,
+                                otherCharges: Number(e.target.value),
+                            }))
+                        }
+                    />
+                </FormField>
+                <FormField label="Site address" className="md:col-span-2">
+                    <Textarea
+                        value={form.siteAddress}
+                        rows={2}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, siteAddress: e.target.value }))
+                        }
                     />
                 </FormField>
             </div>
             {readOnly && (
                 <p className="mt-3 text-xs text-slate-500">
-                    Fields are read-only on historical or terminal versions.
+                    Quotation is in a terminal state and cannot be edited.
                 </p>
             )}
         </Card>
@@ -802,75 +874,146 @@ function CommercialsTab({
 /* ------------------------------- Terms ------------------------------- */
 
 function TermsTab({
-    version,
+    quotation,
+    update,
     readOnly,
 }: {
-    version: QuotationVersion;
+    quotation: Quotation;
+    update: ReturnType<typeof useUpdateQuotation>;
     readOnly: boolean;
 }) {
-    const [templateId, setTemplateId] = useState(version.termsTemplateId);
-    const [body, setBody] = useState(version.termsBody);
+    const { push } = useToast();
+    const [form, setForm] = useState({
+        paymentTerms: quotation.paymentTerms,
+        deliveryTerms: quotation.deliveryTerms,
+        warrantyTerms: quotation.warrantyTerms,
+        scopeOfSupply: quotation.scopeOfSupply,
+        exclusions: quotation.exclusions,
+        notes: quotation.notes,
+    });
+
+    async function save() {
+        try {
+            await update.mutateAsync(form);
+            push({ variant: 'success', title: 'Saved' });
+        } catch (e) {
+            push({
+                variant: 'error',
+                title: 'Save failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
 
     return (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
-            <Card title="Template">
-                <ul className="space-y-1">
-                    {termsTemplates.map((t) => (
-                        <li key={t.id}>
-                            <button
-                                type="button"
-                                disabled={readOnly}
-                                onClick={() => {
-                                    setTemplateId(t.id);
-                                    setBody(t.body);
-                                }}
-                                className={cn(
-                                    'w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                                    templateId === t.id
-                                        ? 'bg-primary/10 text-primary'
-                                        : 'text-slate-600 hover:bg-slate-50',
-                                    readOnly && 'cursor-not-allowed opacity-60',
-                                )}
-                            >
-                                {t.name}
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-                <p className="mt-3 text-xs text-slate-400">
-                    Current: {termsTemplateById(templateId)?.name ?? '—'}
-                </p>
-            </Card>
-            <Card title="Terms body">
-                <Textarea
-                    value={body}
-                    rows={16}
-                    readOnly={readOnly}
-                    onChange={(e) => setBody(e.target.value)}
-                    className="font-mono text-xs"
-                />
-            </Card>
-        </div>
+        <Card
+            title="Terms & conditions"
+            actions={
+                !readOnly && (
+                    <Button size="sm" onClick={save} disabled={update.isPending}>
+                        Save
+                    </Button>
+                )
+            }
+        >
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <FormField label="Payment terms">
+                    <Textarea
+                        rows={3}
+                        value={form.paymentTerms}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, paymentTerms: e.target.value }))
+                        }
+                    />
+                </FormField>
+                <FormField label="Delivery terms">
+                    <Textarea
+                        rows={3}
+                        value={form.deliveryTerms}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, deliveryTerms: e.target.value }))
+                        }
+                    />
+                </FormField>
+                <FormField label="Warranty">
+                    <Textarea
+                        rows={3}
+                        value={form.warrantyTerms}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, warrantyTerms: e.target.value }))
+                        }
+                    />
+                </FormField>
+                <FormField label="Scope of supply">
+                    <Textarea
+                        rows={3}
+                        value={form.scopeOfSupply}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, scopeOfSupply: e.target.value }))
+                        }
+                    />
+                </FormField>
+                <FormField label="Exclusions">
+                    <Textarea
+                        rows={3}
+                        value={form.exclusions}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, exclusions: e.target.value }))
+                        }
+                    />
+                </FormField>
+                <FormField label="Notes">
+                    <Textarea
+                        rows={3}
+                        value={form.notes}
+                        readOnly={readOnly}
+                        onChange={(e) =>
+                            setForm((p) => ({ ...p, notes: e.target.value }))
+                        }
+                    />
+                </FormField>
+            </div>
+        </Card>
     );
 }
 
 /* ----------------------------- Approvals ----------------------------- */
 
-function ApprovalsTab({ approvals }: { approvals: QuotationApprovalStep[] }) {
-    if (approvals.length === 0) {
+function ApprovalsTab({
+    steps,
+    loading,
+}: {
+    steps: QuotationApprovalStep[];
+    loading: boolean;
+}) {
+    if (loading) {
+        return (
+            <Card>
+                <div className="flex items-center gap-2 px-2 py-8 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Loading…
+                </div>
+            </Card>
+        );
+    }
+    if (steps.length === 0) {
         return (
             <EmptyState
                 title="No approval chain configured"
-                description="Draft quotations can be sent directly without approval."
+                description="Once a quotation is submitted for approval, the approval chain appears here."
             />
         );
     }
-    const sorted = [...approvals].sort((a, b) => a.order - b.order);
+    const sorted = [...steps].sort((a, b) => a.stepOrder - b.stepOrder);
     return (
-        <Card title={`Approval chain (${approvals.length})`}>
+        <Card title={`Approval chain (${steps.length})`}>
             <ol className="space-y-3">
                 {sorted.map((s, idx) => {
-                    const user = userById(s.approverId);
                     const active =
                         s.status === 'pending' &&
                         sorted.slice(0, idx).every((x) => x.status === 'approved');
@@ -887,26 +1030,28 @@ function ApprovalsTab({ approvals }: { approvals: QuotationApprovalStep[] }) {
                             <span
                                 className={cn(
                                     'grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold',
-                                    s.status === 'approved' && 'bg-emerald-100 text-emerald-700',
+                                    s.status === 'approved' &&
+                                        'bg-emerald-100 text-emerald-700',
                                     s.status === 'pending' && 'bg-amber-100 text-amber-700',
-                                    s.status === 'waiting' && 'bg-slate-100 text-slate-500',
                                     s.status === 'rejected' && 'bg-red-100 text-red-700',
                                 )}
                             >
-                                {s.order}
+                                {s.stepOrder}
                             </span>
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-slate-800">
-                                    {user?.name ?? '—'}{' '}
-                                    <span className="text-xs font-normal text-slate-500">
-                                        ({s.role})
-                                    </span>
+                                    Approver #{s.approverId ?? '—'}
+                                    {s.conditionType && (
+                                        <span className="ml-2 text-xs font-normal text-slate-500">
+                                            ({s.conditionType})
+                                        </span>
+                                    )}
                                 </p>
                                 <p className="mt-0.5 text-xs text-slate-500">
-                                    {s.actedAt ? fmtDateTime(s.actedAt) : 'Awaiting action'}
+                                    {s.actionAt ? fmtDateTime(s.actionAt) : 'Awaiting action'}
                                 </p>
-                                {s.remark && (
-                                    <p className="mt-1 text-sm text-slate-600">{s.remark}</p>
+                                {s.comments && (
+                                    <p className="mt-1 text-sm text-slate-600">{s.comments}</p>
                                 )}
                             </div>
                             <Badge tone={approvalTone(s.status)}>{s.status}</Badge>
@@ -927,54 +1072,73 @@ function approvalTone(s: QuotationApprovalStep['status']) {
 
 /* --------------------------- Communications --------------------------- */
 
-const COMM_ICON = {
-    email_sent: Mail,
-    email_received: MailCheck,
-    acknowledgement: CheckCircle2,
-    revision_request: MessageSquare,
-    call_note: Phone,
-} as const;
+const COMM_ICON: Record<QuotationCommunication['channel'], typeof Mail> = {
+    email: Mail,
+    whatsapp: MessageSquare,
+    sms: Phone,
+};
 
 function CommunicationsTab({
     items,
+    loading,
     onCompose,
+    canSend: canCompose,
 }: {
     items: QuotationCommunication[];
+    loading: boolean;
     onCompose: () => void;
+    canSend: boolean;
 }) {
-    const sorted = [...items].sort(
-        (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
+    const sorted = useMemo(
+        () =>
+            [...items].sort(
+                (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime(),
+            ),
+        [items],
     );
     return (
         <Card
             title={`Communications (${items.length})`}
             actions={
-                <Button size="sm" onClick={onCompose}>
-                    <Send className="size-4" aria-hidden="true" />
-                    Send email
-                </Button>
+                canCompose && (
+                    <Button size="sm" onClick={onCompose}>
+                        <Send className="size-4" aria-hidden="true" />
+                        Send email
+                    </Button>
+                )
             }
         >
-            {items.length === 0 ? (
+            {loading ? (
+                <div className="flex items-center gap-2 px-2 py-8 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Loading…
+                </div>
+            ) : items.length === 0 ? (
                 <EmptyState
                     title="No communications yet"
-                    description="Emails, acknowledgements and revision requests will appear here."
+                    description="Emails and customer interactions will appear here."
                 />
             ) : (
                 <ul className="divide-y divide-slate-100">
                     {sorted.map((c) => {
-                        const Icon = COMM_ICON[c.type];
+                        const Icon = COMM_ICON[c.channel] ?? Mail;
                         return (
                             <li key={c.id} className="flex items-start gap-3 py-3">
                                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500">
                                     <Icon className="size-4" aria-hidden="true" />
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-slate-800">{c.subject}</p>
-                                    <p className="text-xs text-slate-500">
-                                        {c.fromName} → {c.toName} · {formatRelative(c.at)}
+                                    <p className="font-medium text-slate-800">
+                                        {c.subject || `(${c.channel})`}
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                                    <p className="text-xs text-slate-500">
+                                        To {c.toAddress} · {formatRelative(c.sentAt)}
+                                    </p>
+                                    {c.body && (
+                                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+                                            {c.body}
+                                        </p>
+                                    )}
                                 </div>
                             </li>
                         );
@@ -985,62 +1149,136 @@ function CommunicationsTab({
     );
 }
 
+/* ----------------------------- Activity ----------------------------- */
+
+function ActivityTab({
+    items,
+    loading,
+}: {
+    items: ReturnType<typeof useQuotationActivity>['data'] extends infer T
+        ? T extends Array<infer U>
+            ? U[]
+            : never
+        : never;
+    loading: boolean;
+}) {
+    if (loading) {
+        return (
+            <Card>
+                <div className="flex items-center gap-2 px-2 py-8 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Loading…
+                </div>
+            </Card>
+        );
+    }
+    if (items.length === 0) {
+        return (
+            <EmptyState
+                title="No activity yet"
+                description="Edits and workflow events appear here."
+            />
+        );
+    }
+    return (
+        <Card title={`Activity (${items.length})`}>
+            <ol className="space-y-2">
+                {items.map((a) => (
+                    <li
+                        key={a.id}
+                        className="flex items-start gap-3 rounded-md border border-slate-200 p-2"
+                    >
+                        <CheckCircle2
+                            className="mt-0.5 size-4 shrink-0 text-slate-400"
+                            aria-hidden="true"
+                        />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-800">
+                                {a.actionType}
+                            </p>
+                            {a.remarks && (
+                                <p className="text-xs text-slate-600">{a.remarks}</p>
+                            )}
+                            {(a.oldValue || a.newValue) && (
+                                <p className="text-xs text-slate-500">
+                                    {a.oldValue && <span>from “{a.oldValue}”</span>}
+                                    {a.oldValue && a.newValue && <span> → </span>}
+                                    {a.newValue && <span>to “{a.newValue}”</span>}
+                                </p>
+                            )}
+                            <p className="text-xs text-slate-400">
+                                {fmtDateTime(a.performedAt)}
+                            </p>
+                        </div>
+                    </li>
+                ))}
+            </ol>
+        </Card>
+    );
+}
+
 /* ------------------------------ Versions ----------------------------- */
 
 function VersionsTab({
-    quotation,
-    selected,
-    onSelect,
+    versions,
+    currentId,
+    loading,
+    onOpen,
 }: {
-    quotation: Quotation;
-    selected: number;
-    onSelect: (v: number) => void;
+    versions: QuotationListItem[];
+    currentId: string;
+    loading: boolean;
+    onOpen: (id: string) => void;
 }) {
-    const sorted = [...quotation.versions].sort((a, b) => b.version - a.version);
+    if (loading) {
+        return (
+            <Card>
+                <div className="flex items-center gap-2 px-2 py-8 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Loading…
+                </div>
+            </Card>
+        );
+    }
+    if (versions.length === 0) {
+        return (
+            <EmptyState
+                title="No version history"
+                description="Use the “New version” action to create a revision."
+            />
+        );
+    }
+    const sorted = [...versions].sort((a, b) => b.versionNumber - a.versionNumber);
     return (
-        <Card title={`Versions (${quotation.versions.length})`}>
+        <Card title={`Versions (${versions.length})`}>
             <ol className="divide-y divide-slate-100">
                 {sorted.map((v) => {
-                    const total = versionTotals(v).grandTotal;
-                    const isSelected = v.version === selected;
-                    const isCurrent = v.version === quotation.currentVersion;
+                    const isCurrent = v.id === currentId;
                     return (
-                        <li
-                            key={v.version}
-                            className={cn(
-                                'flex items-start gap-3 py-3',
-                                isSelected && 'bg-primary/5 -mx-3 px-3 rounded-lg',
-                            )}
-                        >
+                        <li key={v.id} className="flex items-start gap-3 py-3">
                             <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600">
-                                v{v.version}
+                                v{v.versionNumber}
                             </span>
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <p className="font-medium text-slate-800">
-                                        v{v.version}
+                                        v{v.versionNumber}
                                     </p>
                                     <StatusBadge status={statusLabel(v.status)} />
-                                    {isCurrent && (
-                                        <Badge tone="blue">Current</Badge>
-                                    )}
+                                    {isCurrent && <Badge tone="blue">Current</Badge>}
                                 </div>
                                 <p className="mt-0.5 text-xs text-slate-500">
                                     Created {fmtDateTime(v.createdAt)} ·{' '}
-                                    {userById(v.createdBy)?.name ?? '—'} ·{' '}
-                                    {formatINR(total)} · {v.lineItems.length} line items
-                                </p>
-                                <p className="mt-1 text-sm text-slate-600">
-                                    {v.changesSummary}
+                                    {formatINR(v.grandTotal)}
                                 </p>
                             </div>
-                            {!isSelected && (
+                            {!isCurrent && (
                                 <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => onSelect(v.version)}
+                                    onClick={() => onOpen(v.id)}
                                 >
-                                    View
+                                    Open
                                 </Button>
                             )}
                         </li>
@@ -1051,157 +1289,62 @@ function VersionsTab({
     );
 }
 
-/* --------------------------- Product Picker --------------------------- */
+/* ----------------------------- Send dialog ----------------------------- */
 
-function ProductPickerDialog({
-    open,
-    onOpenChange,
-    onPick,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onPick: (productId: string) => void;
-}) {
-    const [query, setQuery] = useState('');
-    const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return products.slice(0, 10);
-        return products
-            .filter((p) =>
-                `${p.sku} ${p.name} ${p.category}`.toLowerCase().includes(q),
-            )
-            .slice(0, 20);
-    }, [query]);
-
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(o) => {
-                onOpenChange(o);
-                if (!o) setQuery('');
-            }}
-        >
-            <DialogContent className="max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Add product</DialogTitle>
-                    <DialogDescription>
-                        Search by name, SKU or category.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogBody>
-                    <Input
-                        autoFocus
-                        placeholder="Search products…"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                    />
-                    <ul className="mt-3 max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200">
-                        {filtered.length === 0 ? (
-                            <li className="p-4 text-center text-sm text-slate-500">
-                                No products match.
-                            </li>
-                        ) : (
-                            filtered.map((p) => (
-                                <li key={p.id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => onPick(p.id)}
-                                        className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-slate-50"
-                                    >
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium text-slate-800">
-                                                {p.name}
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                                {p.sku} · {p.category}
-                                            </p>
-                                        </div>
-                                        <span className="text-xs font-semibold text-slate-600">
-                                            {formatINR(p.listPrice)}
-                                        </span>
-                                    </button>
-                                </li>
-                            ))
-                        )}
-                    </ul>
-                </DialogBody>
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        Close
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/* ---------------------------- Send email ---------------------------- */
-
-function SendEmailDialog({
-    open,
-    onOpenChange,
+function SendDialog({
+    onClose,
     quotation,
-    version,
+    send,
 }: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
+    onClose: () => void;
     quotation: Quotation;
-    version: QuotationVersion;
+    send: ReturnType<typeof useSendQuotation>;
 }) {
     const { push } = useToast();
-    const [to, setTo] = useState('customer@example.com');
-    const [cc, setCc] = useState('');
-    const [bcc, setBcc] = useState('');
+    const [to, setTo] = useState('');
     const [subject, setSubject] = useState(
-        `Quotation ${quotation.quotationNumber} v${version.version} — ${quotation.projectName}`,
+        `Quotation ${quotation.quotationNumber} v${quotation.versionNumber} — ${quotation.projectName || ''}`,
     );
     const [body, setBody] = useState(
-        `Dear ${quotation.customerName.split(' ')[0]},\n\nPlease find attached our quotation for ${quotation.projectName}. This quote is valid until ${fmtDate(version.validUntil)}.\n\nLet us know if you have any questions.\n\nRegards,\n${userById(quotation.ownerId)?.name ?? 'Sales Team'}`,
+        `Please find our quotation valid until ${fmtDate(quotation.validUntil)}.`,
     );
-    const [attachPdf, setAttachPdf] = useState(true);
-    const [sending, setSending] = useState(false);
 
-    async function handleSend() {
-        setSending(true);
-        await new Promise((r) => setTimeout(r, 600));
-        setSending(false);
-        push({
-            variant: 'success',
-            title: 'Email sent',
-            description: `${quotation.quotationNumber} → ${to}`,
-        });
-        onOpenChange(false);
+    async function submit() {
+        try {
+            await send.mutateAsync({ toAddress: to, subject, body });
+            push({
+                variant: 'success',
+                title: 'Quotation sent',
+                description: `${quotation.quotationNumber} → ${to}`,
+            });
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'error',
+                title: 'Send failed',
+                description: extractErrorMessage(e),
+            });
+        }
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
             <DialogContent className="max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>Send quotation via email</DialogTitle>
+                    <DialogTitle>Send quotation</DialogTitle>
                     <DialogDescription>
-                        Customer will receive a link to view the quotation online.
+                        Logs a communication and marks the quotation as sent.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogBody className="space-y-3">
                     <FormField label="To" required>
                         <Input
+                            type="email"
                             value={to}
                             onChange={(e) => setTo(e.target.value)}
-                            type="email"
+                            placeholder="customer@example.com"
                         />
                     </FormField>
-                    <div className="grid grid-cols-2 gap-3">
-                        <FormField label="CC">
-                            <Input value={cc} onChange={(e) => setCc(e.target.value)} />
-                        </FormField>
-                        <FormField label="BCC">
-                            <Input value={bcc} onChange={(e) => setBcc(e.target.value)} />
-                        </FormField>
-                    </div>
                     <FormField label="Subject">
                         <Input
                             value={subject}
@@ -1210,36 +1353,23 @@ function SendEmailDialog({
                     </FormField>
                     <FormField label="Body">
                         <Textarea
-                            rows={8}
+                            rows={6}
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
                         />
                     </FormField>
-                    <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-                        <input
-                            type="checkbox"
-                            checked={attachPdf}
-                            onChange={(e) => setAttachPdf(e.target.checked)}
-                            className="size-4 rounded border-slate-300"
-                        />
-                        Attach PDF ({quotation.quotationNumber}_v{version.version}.pdf)
-                    </label>
                 </DialogBody>
                 <DialogFooter>
                     <Button
-                        type="button"
                         variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                        disabled={sending}
+                        onClick={onClose}
+                        disabled={send.isPending}
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleSend} disabled={sending || !to}>
-                        {sending && (
-                            <Loader2
-                                className="size-4 animate-spin"
-                                aria-hidden="true"
-                            />
+                    <Button onClick={submit} disabled={send.isPending || !to}>
+                        {send.isPending && (
+                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                         )}
                         <Send className="size-4" aria-hidden="true" />
                         Send
@@ -1250,59 +1380,73 @@ function SendEmailDialog({
     );
 }
 
-/* --------------------------- Version bump --------------------------- */
+/* ----------------------------- Reject dialog ---------------------------- */
 
-function VersionBumpDialog({
-    open,
-    onOpenChange,
-    quotation,
-    version,
+function RejectDialog({
+    onClose,
+    quotationNumber,
+    reject,
 }: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    quotation: Quotation;
-    version: QuotationVersion;
+    onClose: () => void;
+    quotationNumber: string;
+    reject: ReturnType<typeof useRejectQuotation>;
 }) {
     const { push } = useToast();
+    const [comments, setComments] = useState('');
+
+    async function submit() {
+        try {
+            await reject.mutateAsync(comments);
+            push({
+                variant: 'warning',
+                title: 'Quotation rejected',
+                description: quotationNumber,
+            });
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'error',
+                title: 'Reject failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Create a new version?</DialogTitle>
+                    <DialogTitle>Reject quotation</DialogTitle>
                     <DialogDescription>
-                        {quotation.quotationNumber} is currently{' '}
-                        <strong>{statusLabel(version.status)}</strong> and cannot be
-                        edited in place. We&rsquo;ll clone v{version.version} into a new
-                        draft version that you can modify.
+                        Provide a reason for rejecting {quotationNumber}.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
-                    <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
-                        <li>v{version.version + 1} will be created as a Draft.</li>
-                        <li>All previous versions remain read-only.</li>
-                        <li>Approval chain will reset.</li>
-                    </ul>
+                    <FormField label="Reason" required>
+                        <Textarea
+                            rows={4}
+                            value={comments}
+                            onChange={(e) => setComments(e.target.value)}
+                        />
+                    </FormField>
                 </DialogBody>
                 <DialogFooter>
                     <Button
-                        type="button"
                         variant="ghost"
-                        onClick={() => onOpenChange(false)}
+                        onClick={onClose}
+                        disabled={reject.isPending}
                     >
                         Cancel
                     </Button>
                     <Button
-                        type="button"
-                        onClick={() => {
-                            push({
-                                variant: 'success',
-                                title: `v${version.version + 1} created`,
-                                description: `${quotation.quotationNumber} new draft is ready to edit.`,
-                            });
-                            onOpenChange(false);
-                        }}
+                        variant="danger"
+                        onClick={submit}
+                        disabled={reject.isPending || !comments.trim()}
                     >
-                        Create v{version.version + 1}
+                        {reject.isPending && (
+                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                        )}
+                        Reject
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1310,190 +1454,202 @@ function VersionBumpDialog({
     );
 }
 
-/* ---------------------------- PDF Preview ---------------------------- */
+/* ------------------------------ Item dialog ----------------------------- */
 
-function PdfPreviewSheet({
-    open,
-    onOpenChange,
-    quotation,
-    version,
-    totals,
+function ItemDialog({
+    quotationId,
+    mode,
+    initial,
+    onClose,
 }: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    quotation: Quotation;
-    version: QuotationVersion;
-    totals: ReturnType<typeof versionTotals>;
+    quotationId: string;
+    mode: 'add' | 'edit';
+    initial: QuotationItem | null;
+    onClose: () => void;
 }) {
     const { push } = useToast();
-    return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-[42rem]">
-                <SheetHeader>
-                    <SheetTitle>PDF Preview</SheetTitle>
-                    <SheetDescription>
-                        {quotation.quotationNumber} · v{version.version}
-                    </SheetDescription>
-                </SheetHeader>
-                <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                            push({
-                                variant: 'info',
-                                title: 'Download queued',
-                                description: `${quotation.quotationNumber}_v${version.version}.pdf`,
-                            })
-                        }
-                    >
-                        <Download className="size-4" aria-hidden="true" />
-                        Download
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => window.print()}
-                    >
-                        <Printer className="size-4" aria-hidden="true" />
-                        Print
-                    </Button>
-                </div>
-                <div className="flex-1 overflow-y-auto bg-slate-100 p-4">
-                    <div className="mx-auto max-w-[640px] rounded-lg bg-white p-6 shadow-sm">
-                        {/* PDF content */}
-                        <div className="mb-4 flex items-start justify-between border-b border-slate-200 pb-3">
-                            <div>
-                                <p className="text-lg font-semibold text-slate-800">
-                                    Pump Traders Pvt. Ltd.
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    GST: 24ABCDE1234F1Z5 · Surat, Gujarat
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-sm font-semibold">Quotation</p>
-                                <p className="text-xs text-slate-500">
-                                    {quotation.quotationNumber} · v{version.version}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    Dated {fmtDate(version.createdAt)}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mb-4 grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <p className="font-semibold text-slate-500 uppercase">To</p>
-                                <p className="font-medium text-slate-800">
-                                    {quotation.customerName}
-                                </p>
-                                <p className="text-slate-600">{quotation.companyName}</p>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-slate-500 uppercase">
-                                    Project
-                                </p>
-                                <p className="text-slate-800">{quotation.projectName}</p>
-                                <p className="text-slate-600">
-                                    Valid until {fmtDate(version.validUntil)}
-                                </p>
-                            </div>
-                        </div>
-                        <table className="mb-4 w-full text-xs">
-                            <thead className="bg-slate-100 text-left">
-                                <tr>
-                                    <th className="px-2 py-1">#</th>
-                                    <th className="px-2 py-1">Description</th>
-                                    <th className="px-2 py-1 text-right">Qty</th>
-                                    <th className="px-2 py-1 text-right">Rate</th>
-                                    <th className="px-2 py-1 text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {version.lineItems.map((li, idx) => {
-                                    const t = lineTotals(li);
-                                    return (
-                                        <tr
-                                            key={li.id}
-                                            className="border-b border-slate-100"
-                                        >
-                                            <td className="px-2 py-1">{idx + 1}</td>
-                                            <td className="px-2 py-1">
-                                                {li.description}
-                                                {li.specNotes && (
-                                                    <p className="text-[10px] text-slate-500">
-                                                        {li.specNotes}
-                                                    </p>
-                                                )}
-                                            </td>
-                                            <td className="px-2 py-1 text-right">
-                                                {li.quantity} {li.uom}
-                                            </td>
-                                            <td className="px-2 py-1 text-right">
-                                                {formatINR(li.listPrice)}
-                                            </td>
-                                            <td className="px-2 py-1 text-right">
-                                                {formatINR(t.total)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                        <div className="ml-auto w-64 space-y-1 text-xs">
-                            <Row label="Subtotal" value={formatINR(totals.subtotal)} />
-                            <Row
-                                label="Discount"
-                                value={`− ${formatINR(totals.discount)}`}
-                            />
-                            <Row label="Tax" value={formatINR(totals.tax)} />
-                            <Row label="Freight" value={formatINR(totals.freight)} />
-                            <Row
-                                label="Installation"
-                                value={formatINR(totals.installation)}
-                            />
-                            <div className="border-t border-slate-200 pt-1">
-                                <Row
-                                    label="Grand Total"
-                                    value={formatINR(totals.grandTotal)}
-                                    bold
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-6 border-t border-slate-200 pt-3">
-                            <p className="text-xs font-semibold text-slate-500 uppercase">
-                                Terms & Conditions
-                            </p>
-                            <pre className="mt-1 whitespace-pre-wrap font-sans text-[11px] text-slate-600">
-                                {version.termsBody}
-                            </pre>
-                        </div>
-                    </div>
-                </div>
-            </SheetContent>
-        </Sheet>
-    );
-}
+    const createMut = useCreateQuotationItem(quotationId);
+    const updateMut = useUpdateQuotationItem(quotationId);
 
-function Row({
-    label,
-    value,
-    bold,
-}: {
-    label: string;
-    value: string;
-    bold?: boolean;
-}) {
+    const [form, setForm] = useState<QuotationItemWritePayload>({
+        productDescription: initial?.productDescription ?? '',
+        productCode: initial?.productCode ?? '',
+        brand: initial?.brand ?? '',
+        modelNumber: initial?.modelNumber ?? '',
+        specifications: initial?.specifications ?? '',
+        quantity: initial?.quantity ?? 1,
+        unit: initial?.unit ?? 'nos',
+        unitCost: initial?.unitCost ?? 0,
+        unitPrice: initial?.unitPrice ?? 0,
+        discountPercent: initial?.discountPercent ?? 0,
+        notes: initial?.notes ?? '',
+    });
+
+    async function submit() {
+        try {
+            if (mode === 'add') {
+                await createMut.mutateAsync(form);
+                push({ variant: 'success', title: 'Line added' });
+            } else if (initial) {
+                await updateMut.mutateAsync({
+                    itemId: initial.id,
+                    payload: form,
+                });
+                push({ variant: 'success', title: 'Line updated' });
+            }
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'error',
+                title: mode === 'add' ? 'Add failed' : 'Update failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
+
+    const pending = createMut.isPending || updateMut.isPending;
+
     return (
-        <div
-            className={cn(
-                'flex items-center justify-between',
-                bold && 'text-sm font-semibold text-slate-900',
-            )}
-        >
-            <span className="text-slate-500">{label}</span>
-            <span>{value}</span>
-        </div>
+        <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
+            <DialogContent className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>
+                        {mode === 'add' ? 'Add line item' : 'Edit line item'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Totals are recalculated by the backend after saving.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody className="space-y-3">
+                    <FormField label="Description" required>
+                        <Textarea
+                            rows={2}
+                            value={form.productDescription}
+                            onChange={(e) =>
+                                setForm((p) => ({
+                                    ...p,
+                                    productDescription: e.target.value,
+                                }))
+                            }
+                        />
+                    </FormField>
+                    <div className="grid grid-cols-2 gap-3">
+                        <FormField label="Product code">
+                            <Input
+                                value={form.productCode ?? ''}
+                                onChange={(e) =>
+                                    setForm((p) => ({ ...p, productCode: e.target.value }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Brand">
+                            <Input
+                                value={form.brand ?? ''}
+                                onChange={(e) =>
+                                    setForm((p) => ({ ...p, brand: e.target.value }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Model number">
+                            <Input
+                                value={form.modelNumber ?? ''}
+                                onChange={(e) =>
+                                    setForm((p) => ({ ...p, modelNumber: e.target.value }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Unit" required>
+                            <Input
+                                value={form.unit}
+                                onChange={(e) =>
+                                    setForm((p) => ({ ...p, unit: e.target.value }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Quantity" required>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={form.quantity}
+                                onChange={(e) =>
+                                    setForm((p) => ({
+                                        ...p,
+                                        quantity: Number(e.target.value),
+                                    }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Unit price (₹)" required>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={form.unitPrice}
+                                onChange={(e) =>
+                                    setForm((p) => ({
+                                        ...p,
+                                        unitPrice: Number(e.target.value),
+                                    }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Unit cost (₹)">
+                            <Input
+                                type="number"
+                                min={0}
+                                value={form.unitCost ?? 0}
+                                onChange={(e) =>
+                                    setForm((p) => ({
+                                        ...p,
+                                        unitCost: Number(e.target.value),
+                                    }))
+                                }
+                            />
+                        </FormField>
+                        <FormField label="Discount %">
+                            <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.5}
+                                value={form.discountPercent ?? 0}
+                                onChange={(e) =>
+                                    setForm((p) => ({
+                                        ...p,
+                                        discountPercent: Number(e.target.value),
+                                    }))
+                                }
+                            />
+                        </FormField>
+                    </div>
+                    <FormField label="Specifications">
+                        <Textarea
+                            rows={2}
+                            value={form.specifications ?? ''}
+                            onChange={(e) =>
+                                setForm((p) => ({
+                                    ...p,
+                                    specifications: e.target.value,
+                                }))
+                            }
+                        />
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} disabled={pending}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={submit}
+                        disabled={pending || !form.productDescription.trim()}
+                    >
+                        {pending && (
+                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                        )}
+                        {mode === 'add' ? 'Add line' : 'Save'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -1507,7 +1663,7 @@ function Card({
 }: {
     title?: string;
     actions?: React.ReactNode;
-    children: React.ReactNode;
+    children?: React.ReactNode;
     className?: string;
 }) {
     return (
