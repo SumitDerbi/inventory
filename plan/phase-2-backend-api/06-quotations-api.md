@@ -62,10 +62,10 @@
 
 ## Verification
 
-- [ ] Pricing unit test matrix 100 % passing.
-- [ ] Coverage ≥ 85 %.
+- [x] Pricing unit test matrix 100 % passing.
+- [x] Coverage ≥ 85 %.
 - [ ] Postman chain green.
-- [ ] Commit: `feat(api): quotations + pricing + approvals`.
+- [x] Commit: `feat(api): quotations + pricing + approvals`.
 
 ---
 

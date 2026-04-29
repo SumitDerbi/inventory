@@ -20,6 +20,7 @@ api_v1_patterns = [
     path("", include("apps.inquiries.urls")),
     path("", include("apps.inventory.urls")),
     path("", include("apps.notifications.urls")),
+    path("", include("apps.quotations.urls")),
 ]
 
 urlpatterns = [

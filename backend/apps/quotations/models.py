@@ -1,7 +1,7 @@
 """Quotation lifecycle — versions, items, approval steps, price/discount rules."""
 from django.db import models
 
-from apps.core.models import AuditModel
+from apps.core.models import AuditModel, TimeStampedModel
 
 
 class Quotation(AuditModel):
@@ -71,7 +71,7 @@ class Quotation(AuditModel):
     freight_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     other_charges = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    gross_margin_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    gross_margin_percent = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     payment_terms = models.TextField(blank=True)
     delivery_terms = models.TextField(blank=True)
     warranty_terms = models.TextField(blank=True)
@@ -220,3 +220,43 @@ class DiscountRule(AuditModel):
     class Meta:
         db_table = "discount_rules"
         ordering = ["name"]
+
+class QuotationActivityLog(TimeStampedModel):
+    quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE, related_name="activity_logs")
+    action_type = models.CharField(max_length=100, db_index=True)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    remarks = models.TextField(blank=True)
+    performed_by = models.ForeignKey(
+        "auth_ext.User",
+        on_delete=models.PROTECT,
+        related_name="quotation_activities",
+    )
+    performed_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = "quotation_activity_logs"
+        ordering = ["-performed_at"]
+
+
+class QuotationCommunicationLog(TimeStampedModel):
+    class Channel(models.TextChoices):
+        EMAIL = "email", "Email"
+        WHATSAPP = "whatsapp", "WhatsApp"
+        SMS = "sms", "SMS"
+
+    quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE, related_name="communications")
+    channel = models.CharField(max_length=20, choices=Channel.choices)
+    to_address = models.CharField(max_length=255)
+    subject = models.CharField(max_length=255, blank=True)
+    body = models.TextField(blank=True)
+    sent_at = models.DateTimeField(db_index=True)
+    sent_by = models.ForeignKey(
+        "auth_ext.User",
+        on_delete=models.PROTECT,
+        related_name="quotation_communications",
+    )
+
+    class Meta:
+        db_table = "quotation_communication_logs"
+        ordering = ["-sent_at"]
