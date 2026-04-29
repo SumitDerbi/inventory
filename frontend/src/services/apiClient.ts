@@ -111,6 +111,41 @@ apiClient.interceptors.response.use(
     },
 );
 
+// Share the same 401 -> refresh -> retry behaviour for the auth client so
+// expired access tokens on /me, /sessions, /2fa, etc. transparently refresh
+// instead of bubbling up as "Token is expired" and forcing a re-login.
+authClient.interceptors.response.use(
+    (r) => r,
+    async (error: AxiosError) => {
+        const original = error.config as InternalAxiosRequestConfig & {
+            _retry?: boolean;
+            url?: string;
+        };
+        const isRefreshCall =
+            typeof original?.url === 'string' && original.url.includes('/refresh');
+        if (
+            error.response?.status === 401 &&
+            original &&
+            !original._retry &&
+            !isRefreshCall
+        ) {
+            original._retry = true;
+            refreshing ??= refreshAccessToken().finally(() => {
+                refreshing = null;
+            });
+            const newToken = await refreshing;
+            if (newToken) {
+                original.headers = original.headers ?? {};
+                (original.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
+                return authClient.request(original);
+            }
+            tokenStore.clear();
+            onUnauthorized?.();
+        }
+        return Promise.reject(error);
+    },
+);
+
 export interface DRFErrorBody {
     detail?: string;
     [field: string]: unknown;
