@@ -88,3 +88,202 @@ export const defaultHandlers = [
     http.get(`${BASE}/inquiries/:id/line_items/`, () => HttpResponse.json([])),
     http.get(`${BASE}/inquiries/:id/activity/`, () => HttpResponse.json([])),
 ];
+
+// ---------------------------------------------------------------------------
+// Quotations stubs
+// ---------------------------------------------------------------------------
+
+export interface ApiQuotationItemStub {
+    id: number;
+    quotation: number;
+    product: number | null;
+    product_code: string;
+    product_description: string;
+    brand: string;
+    model_number: string;
+    specifications: string;
+    quantity: string;
+    unit: string;
+    unit_cost: string;
+    unit_price: string;
+    discount_percent: string;
+    discount_amount: string;
+    tax_rule: number | null;
+    tax_amount: string;
+    line_total: string;
+    sort_order: number;
+    notes: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export function makeApiQuotationItem(
+    overrides: Partial<ApiQuotationItemStub> = {},
+): ApiQuotationItemStub {
+    return {
+        id: 101,
+        quotation: 1,
+        product: null,
+        product_code: 'P-100',
+        product_description: 'Centrifugal pump 5HP',
+        brand: 'Acme',
+        model_number: 'CP-5',
+        specifications: '',
+        quantity: '2',
+        unit: 'nos',
+        unit_cost: '40000',
+        unit_price: '50000',
+        discount_percent: '0',
+        discount_amount: '0',
+        tax_rule: null,
+        tax_amount: '18000',
+        line_total: '118000',
+        sort_order: 1,
+        notes: '',
+        created_at: '2026-04-20T10:00:00Z',
+        updated_at: '2026-04-20T10:00:00Z',
+        ...overrides,
+    };
+}
+
+export interface ApiQuotationStub {
+    id: number;
+    quotation_number: string;
+    version_number: number;
+    inquiry: number | null;
+    customer: number;
+    contact: number | null;
+    site_address: string;
+    project_name: string;
+    quotation_date: string;
+    valid_until: string;
+    status: string;
+    prepared_by: number | null;
+    approved_by: number | null;
+    approved_at: string | null;
+    currency: string;
+    subtotal: string;
+    total_discount: string;
+    total_tax: string;
+    freight_amount: string;
+    other_charges: string;
+    grand_total: string;
+    gross_margin_percent: string | null;
+    payment_terms: string;
+    delivery_terms: string;
+    warranty_terms: string;
+    scope_of_supply: string;
+    exclusions: string;
+    notes: string;
+    sent_at: string | null;
+    parent_quotation: number | null;
+    items: ApiQuotationItemStub[];
+    created_at: string;
+    updated_at: string;
+}
+
+export function makeApiQuotation(
+    overrides: Partial<ApiQuotationStub> = {},
+): ApiQuotationStub {
+    return {
+        id: 1,
+        quotation_number: 'QUO-2026-0001',
+        version_number: 1,
+        inquiry: null,
+        customer: 11,
+        contact: null,
+        site_address: '',
+        project_name: 'Pump replacement',
+        quotation_date: '2026-04-20',
+        valid_until: '2026-05-20',
+        status: 'draft',
+        prepared_by: null,
+        approved_by: null,
+        approved_at: null,
+        currency: 'INR',
+        subtotal: '100000',
+        total_discount: '0',
+        total_tax: '18000',
+        freight_amount: '0',
+        other_charges: '0',
+        grand_total: '118000',
+        gross_margin_percent: null,
+        payment_terms: '',
+        delivery_terms: '',
+        warranty_terms: '',
+        scope_of_supply: '',
+        exclusions: '',
+        notes: '',
+        sent_at: null,
+        parent_quotation: null,
+        items: [makeApiQuotationItem()],
+        created_at: '2026-04-20T10:00:00Z',
+        updated_at: '2026-04-20T10:00:00Z',
+        ...overrides,
+    };
+}
+
+export interface ApiQuotationListStub {
+    id: number;
+    quotation_number: string;
+    version_number: number;
+    customer: number;
+    customer_name: string;
+    company_name: string;
+    project_name: string;
+    status: string;
+    quotation_date: string;
+    valid_until: string;
+    grand_total: string;
+    currency: string;
+    prepared_by: number | null;
+    created_at: string;
+}
+
+export function makeApiQuotationListItem(
+    overrides: Partial<ApiQuotationListStub> = {},
+): ApiQuotationListStub {
+    return {
+        id: 1,
+        quotation_number: 'QUO-2026-0001',
+        version_number: 1,
+        customer: 11,
+        customer_name: 'Ravi Kumar',
+        company_name: 'Acme Pvt Ltd',
+        project_name: 'Pump replacement',
+        status: 'draft',
+        quotation_date: '2026-04-20',
+        valid_until: '2026-05-20',
+        grand_total: '118000',
+        currency: 'INR',
+        prepared_by: null,
+        created_at: '2026-04-20T10:00:00Z',
+        ...overrides,
+    };
+}
+
+/** Default detail-tab handlers (items/approval-steps/communications/activity/versions). */
+export function quotationDetailHandlers(
+    quotation: ApiQuotationStub = makeApiQuotation(),
+) {
+    return [
+        http.get(`${BASE}/quotations/${quotation.id}/`, () =>
+            HttpResponse.json(quotation),
+        ),
+        http.get(`${BASE}/quotations/${quotation.id}/items/`, () =>
+            HttpResponse.json(quotation.items),
+        ),
+        http.get(`${BASE}/quotations/${quotation.id}/approval-steps/`, () =>
+            HttpResponse.json([]),
+        ),
+        http.get(`${BASE}/quotations/${quotation.id}/communications/`, () =>
+            HttpResponse.json([]),
+        ),
+        http.get(`${BASE}/quotations/${quotation.id}/activity/`, () =>
+            HttpResponse.json([]),
+        ),
+        http.get(`${BASE}/quotations/${quotation.id}/versions/`, () =>
+            HttpResponse.json([]),
+        ),
+    ];
+}
