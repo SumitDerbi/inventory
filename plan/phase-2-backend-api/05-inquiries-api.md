@@ -83,7 +83,7 @@
 ## Verification
 
 - [x] Coverage ≥ 85 %. _(5a — 20 tests, 103/103 suite green)_
-- [ ] All Postman flows green. _(5b)_
+- [x] All Postman flows green. _(5b — newman 13/13 assertions, 0 failures)_
 - [x] Activity timeline shows every mutation. _(5a — created/updated/assigned/status_changed/follow_up_scheduled/follow_up_updated/line_item_added/line_item_updated/line_item_deleted/converted_to_quotation)_
 - [x] Commit: `feat(api): inquiries + workflow + tests`. _(5a backend slice)_
 

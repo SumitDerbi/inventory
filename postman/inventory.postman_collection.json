@@ -1,0 +1,322 @@
+{
+  "info": {
+    "name": "Inventory BPA — API",
+    "_postman_id": "b8e6f8e0-0000-4000-a000-000000000001",
+    "description": "End-to-end Postman collection for the Inventory BPA backend. Folders are added per Phase-2 vertical slice. Each folder chains requests via env vars set in test scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (admin)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.access).to.be.a('string');",
+                  "pm.environment.set('access_token', j.access);",
+                  "pm.environment.set('refresh_token', j.refresh);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Inquiries",
+      "item": [
+        {
+          "name": "Create Inquiry Source",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiry-sources/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiry-sources", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Source {{$timestamp}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('source_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Customer",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ts = String(Date.now());",
+                  "pm.variables.set('unique_mobile', '9' + ts.slice(-9));",
+                  "pm.variables.set('unique_email', 'pat' + ts + '@example.com');",
+                  "pm.variables.set('unique_company', 'Postman Co ' + ts);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('customer_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customers/", "host": ["{{base_url}}"], "path": ["api", "v1", "customers", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_type\": \"company\",\n  \"company_name\": \"{{unique_company}}\",\n  \"contact_person_name\": \"Pat\",\n  \"mobile\": \"{{unique_mobile}}\",\n  \"email\": \"{{unique_email}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Inquiry",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/?force=true", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", ""], "query": [{ "key": "force", "value": "true" }] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": {{source_id}},\n  \"customer\": {{customer_id}},\n  \"customer_name\": \"Pat\",\n  \"company_name\": \"Postman Co\",\n  \"mobile\": \"9000123456\",\n  \"email\": \"pat@example.com\",\n  \"inquiry_type\": \"new_project\",\n  \"priority\": \"medium\",\n  \"project_name\": \"Postman Project\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.inquiry_number).to.match(/^INQ/);",
+                  "pm.environment.set('inquiry_id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Inquiries (filter status=new)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/?status=new", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", ""], "query": [{ "key": "status", "value": "new" }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().count).to.be.at.least(1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Line Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/{{inquiry_id}}/items/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "{{inquiry_id}}", "items", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_description\": \"Submersible Pump 5HP\",\n  \"quantity\": \"2.00\",\n  \"unit\": \"nos\",\n  \"estimated_value\": \"55000.00\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/{{inquiry_id}}/follow-ups/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "{{inquiry_id}}", "follow-ups", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"follow_up_type\": \"call\",\n  \"scheduled_at\": \"2026-05-15T10:00:00Z\",\n  \"assigned_to\": {{admin_user_id}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('follow_up_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Status → in_progress",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/{{inquiry_id}}/status/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "{{inquiry_id}}", "status", ""] },
+            "body": { "mode": "raw", "raw": "{ \"status\": \"in_progress\" }" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().status).to.equal('in_progress');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Status → quoted",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/{{inquiry_id}}/status/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "{{inquiry_id}}", "status", ""] },
+            "body": { "mode": "raw", "raw": "{ \"status\": \"quoted\" }" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Convert to Quotation",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/{{inquiry_id}}/convert-to-quotation/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "{{inquiry_id}}", "convert-to-quotation", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.quotation_number).to.match(/^QUO/);",
+                  "pm.expect(j.inquiry_status).to.equal('converted');",
+                  "pm.environment.set('quotation_id', j.quotation_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activity timeline",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/{{inquiry_id}}/activity/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "{{inquiry_id}}", "activity", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const types = pm.response.json().map(r => r.action_type);",
+                  "pm.expect(types).to.include('created');",
+                  "pm.expect(types).to.include('status_changed');",
+                  "pm.expect(types).to.include('converted_to_quotation');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/stats/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "stats", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().by_status).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk export (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/inquiries/bulk-export/", "host": ["{{base_url}}"], "path": ["api", "v1", "inquiries", "bulk-export", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"inquiry_ids\": [{{inquiry_id}}],\n  \"format\": \"csv\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.headers.get('Content-Type')).to.match(/text\\/csv/);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

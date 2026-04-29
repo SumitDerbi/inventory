@@ -23,7 +23,7 @@
 
 | #   | Step                                                                         | Status |
 | --- | ---------------------------------------------------------------------------- | ------ |
-| 05  | [Inquiries module slice](./05-inquiries-api.md)                              | 🟡 (5a backend ✅; Postman + UI pending) |
+| 05  | [Inquiries module slice](./05-inquiries-api.md)                              | 🟡 (5a backend + 5b Postman ✅; UI pending) |
 | 06  | [Quotations module slice](./06-quotations-api.md)                            | ☐      |
 | 07  | [Sales Orders module slice](./07-orders-api.md)                              | ☐      |
 | 08  | [Inventory module slice](./08-inventory-api.md)                              | ☐      |
