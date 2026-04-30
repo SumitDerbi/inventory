@@ -262,6 +262,133 @@ export function makeApiQuotationListItem(
     };
 }
 
+// ---------------------------------------------------------------------------
+// Orders stubs
+// ---------------------------------------------------------------------------
+
+export interface ApiOrderItemStub {
+    id: number;
+    order: number;
+    product: number | null;
+    product_description: string;
+    quantity_ordered: string;
+    quantity_dispatched: string;
+    quantity_pending: string;
+    unit: string;
+    unit_price: string;
+    discount_percent: string;
+    tax_rule: number | null;
+    line_total: string;
+    status: string;
+    notes: string;
+}
+
+export function makeApiOrderItem(
+    overrides: Partial<ApiOrderItemStub> = {},
+): ApiOrderItemStub {
+    return {
+        id: 501,
+        order: 1,
+        product: null,
+        product_description: 'Centrifugal pump 5HP',
+        quantity_ordered: '2',
+        quantity_dispatched: '0',
+        quantity_pending: '2',
+        unit: 'nos',
+        unit_price: '50000',
+        discount_percent: '0',
+        tax_rule: null,
+        line_total: '118000',
+        status: 'open',
+        notes: '',
+        ...overrides,
+    };
+}
+
+export interface ApiSalesOrderStub {
+    id: number;
+    order_number: string;
+    quotation: number | null;
+    customer: number;
+    contact: number | null;
+    project_name: string;
+    order_date: string;
+    status: string;
+    confirmed_at: string | null;
+    confirmed_by: number | null;
+    cancellation_reason: string;
+    assigned_sales_exec: number | null;
+    subtotal: string;
+    total_discount: string;
+    total_tax: string;
+    freight_amount: string;
+    grand_total: string;
+    items: ApiOrderItemStub[];
+    created_at: string;
+    updated_at: string;
+}
+
+export function makeApiSalesOrder(
+    overrides: Partial<ApiSalesOrderStub> = {},
+): ApiSalesOrderStub {
+    return {
+        id: 1,
+        order_number: 'SO/2604/00001',
+        quotation: null,
+        customer: 11,
+        contact: null,
+        project_name: 'Pump replacement',
+        order_date: '2026-04-25',
+        status: 'confirmed',
+        confirmed_at: '2026-04-25T10:00:00Z',
+        confirmed_by: 1,
+        cancellation_reason: '',
+        assigned_sales_exec: null,
+        subtotal: '100000',
+        total_discount: '0',
+        total_tax: '18000',
+        freight_amount: '0',
+        grand_total: '118000',
+        items: [makeApiOrderItem()],
+        created_at: '2026-04-25T10:00:00Z',
+        updated_at: '2026-04-25T10:00:00Z',
+        ...overrides,
+    };
+}
+
+export interface ApiSalesOrderListStub {
+    id: number;
+    order_number: string;
+    customer: number;
+    customer_name: string;
+    company_name: string;
+    project_name: string;
+    status: string;
+    order_date: string;
+    grand_total: string;
+    assigned_sales_exec: number | null;
+    created_at: string;
+}
+
+export function makeApiSalesOrderListItem(
+    overrides: Partial<ApiSalesOrderListStub> = {},
+): ApiSalesOrderListStub {
+    return {
+        id: 1,
+        order_number: 'SO/2604/00001',
+        customer: 11,
+        customer_name: 'Ravi Kumar',
+        company_name: 'Acme Pvt Ltd',
+        project_name: 'Pump replacement',
+        status: 'confirmed',
+        order_date: '2026-04-25',
+        grand_total: '118000',
+        assigned_sales_exec: null,
+        created_at: '2026-04-25T10:00:00Z',
+        ...overrides,
+    };
+}
+
 /** Default detail-tab handlers (items/approval-steps/communications/activity/versions). */
 export function quotationDetailHandlers(
     quotation: ApiQuotationStub = makeApiQuotation(),
