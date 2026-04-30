@@ -149,6 +149,14 @@ class SalesOrderViewSet(AuditModelViewSet):
         released = services.release_stock(order, user=user)
         return Response({"released": released})
 
+    @action(detail=True, methods=["post"], url_path="dispatch")
+    def dispatch_items(self, request, pk=None):
+        order = self.get_object()
+        items = request.data.get("items") or []
+        user = request.user if request.user.is_authenticated else None
+        services.apply_dispatch(order, items=items, user=user)
+        return Response(SalesOrderSerializer(order).data)
+
 
     # ------------------------------------------------------------------
     # Milestones

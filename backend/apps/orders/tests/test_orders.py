@@ -431,3 +431,69 @@ def test_reserve_requires_warehouse(auth_client, customer, gst18, product):
     r = auth_client.post(f'/api/v1/orders/{oid}/reserve/', {}, format='json')
     assert r.status_code == 400
     assert 'warehouse' in r.data
+
+
+# ---------------- partial dispatch ------------------------------------
+def _advance_to_ready(auth_client, oid):
+    for stage in ['confirmed', 'processing', 'ready_to_dispatch']:
+        r = auth_client.post(
+            f'/api/v1/orders/{oid}/stage/', {'next_stage': stage}, format='json'
+        )
+        assert r.status_code == 200, (stage, r.content)
+
+
+def test_dispatch_partial_then_full(auth_client, customer, gst18):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    add = _add_item(auth_client, oid, gst18)
+    item_id = add.data['id']
+    _advance_to_ready(auth_client, oid)
+
+    r1 = auth_client.post(
+        f'/api/v1/orders/{oid}/dispatch/',
+        {'items': [{'item_id': item_id, 'quantity': '4'}]},
+        format='json',
+    )
+    assert r1.status_code == 200, r1.content
+    assert r1.data['status'] == 'partially_dispatched'
+    assert r1.data['items'][0]['quantity_dispatched'] == '4.00'
+    assert r1.data['items'][0]['quantity_pending'] == '6.00'
+
+    r2 = auth_client.post(
+        f'/api/v1/orders/{oid}/dispatch/',
+        {'items': [{'item_id': item_id, 'quantity': '6'}]},
+        format='json',
+    )
+    assert r2.status_code == 200
+    assert r2.data['status'] == 'fully_dispatched'
+    assert r2.data['items'][0]['quantity_pending'] == '0.00'
+    assert r2.data['items'][0]['status'] == 'dispatched'
+
+
+def test_dispatch_rejects_overship(auth_client, customer, gst18):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    add = _add_item(auth_client, oid, gst18)
+    item_id = add.data['id']
+    _advance_to_ready(auth_client, oid)
+    r = auth_client.post(
+        f'/api/v1/orders/{oid}/dispatch/',
+        {'items': [{'item_id': item_id, 'quantity': '999'}]},
+        format='json',
+    )
+    assert r.status_code == 400
+    assert 'quantity' in r.data
+
+
+def test_dispatch_blocked_before_ready(auth_client, customer, gst18):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    add = _add_item(auth_client, oid, gst18)
+    item_id = add.data['id']
+    r = auth_client.post(
+        f'/api/v1/orders/{oid}/dispatch/',
+        {'items': [{'item_id': item_id, 'quantity': '1'}]},
+        format='json',
+    )
+    assert r.status_code == 400
+    assert 'status' in r.data

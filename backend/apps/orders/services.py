@@ -276,3 +276,79 @@ def release_stock(order: SalesOrder, *, user=None) -> int:
     return qs.update(**update_kwargs)
 
 
+# ---------------------------------------------------------------------------
+# Partial dispatch
+# ---------------------------------------------------------------------------
+@transaction.atomic
+def apply_dispatch(
+    order: SalesOrder,
+    *,
+    items: list[dict],
+    user=None,
+) -> SalesOrder:
+    """Increment quantity_dispatched on each item; auto-flip order status.
+
+    `items` = [{ "item_id": int, "quantity": Decimal-like }].
+    Order status flips:
+      - any pending remaining → partially_dispatched
+      - all pending == 0     → fully_dispatched
+    Allowed only from ready_to_dispatch / partially_dispatched.
+    """
+    Status = SalesOrder.Status
+    if order.status not in (Status.READY_TO_DISPATCH, Status.PARTIALLY_DISPATCHED):
+        raise ValidationError(
+            {"status": f"Cannot dispatch from stage '{order.status}'."}
+        )
+    if not items:
+        raise ValidationError({"items": "At least one item is required."})
+
+    by_id = {item.id: item for item in order.items.all()}
+    for row in items:
+        iid = row.get("item_id")
+        qty = _q(row.get("quantity", 0))
+        if iid not in by_id:
+            raise ValidationError({"item_id": f"Item {iid} not found on order."})
+        if qty <= ZERO:
+            raise ValidationError({"quantity": "Quantity must be > 0."})
+        oi = by_id[iid]
+        pending = _q(oi.quantity_pending)
+        if qty > pending:
+            raise ValidationError(
+                {
+                    "quantity": (
+                        f"Item {iid}: dispatch {qty} exceeds pending {pending}."
+                    )
+                }
+            )
+        oi.quantity_dispatched = _q(oi.quantity_dispatched + qty)
+        oi.quantity_pending = _q(pending - qty)
+        if oi.quantity_pending == ZERO:
+            oi.status = SalesOrderItem.Status.DISPATCHED
+        update_fields = [
+            "quantity_dispatched",
+            "quantity_pending",
+            "status",
+            "updated_at",
+        ]
+        if user is not None and hasattr(oi, "updated_by_id"):
+            oi.updated_by = user
+            update_fields.append("updated_by")
+        oi.save(update_fields=update_fields)
+
+    total_pending = sum(
+        _q(oi.quantity_pending) for oi in order.items.all()
+    )
+    new_status = (
+        Status.FULLY_DISPATCHED if total_pending == ZERO else Status.PARTIALLY_DISPATCHED
+    )
+    if order.status != new_status:
+        order.status = new_status
+        update_fields = ["status", "updated_at"]
+        if user is not None and hasattr(order, "updated_by_id"):
+            order.updated_by = user
+            update_fields.append("updated_by")
+        order.save(update_fields=update_fields)
+    return order
+
+
+
