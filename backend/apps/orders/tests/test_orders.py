@@ -169,9 +169,10 @@ def test_delete_item_recomputes(auth_client, customer, gst18):
         ["confirmed", "processing", "ready_to_dispatch", "fully_dispatched", "installed", "closed"],
     ],
 )
-def test_stage_happy_path(auth_client, customer, chain):
+def test_stage_happy_path(auth_client, customer, gst18, chain):
     res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
     oid = res.data["id"]
+    _add_item(auth_client, oid, gst18)
     for stage in chain:
         r = auth_client.post(
             f"/api/v1/orders/{oid}/stage/", {"next_stage": stage}, format="json"
@@ -190,9 +191,10 @@ def test_stage_rejects_invalid_jump(auth_client, customer):
     assert "next_stage" in r.data
 
 
-def test_stage_confirm_sets_confirmed_at(auth_client, customer):
+def test_stage_confirm_sets_confirmed_at(auth_client, customer, gst18):
     res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
     oid = res.data["id"]
+    _add_item(auth_client, oid, gst18)
     r = auth_client.post(
         f"/api/v1/orders/{oid}/stage/", {"next_stage": "confirmed"}, format="json"
     )
@@ -218,9 +220,10 @@ def test_stage_cancel_requires_reason(auth_client, customer):
     assert good.data["cancellation_reason"] == "duplicate"
 
 
-def test_stage_cancel_blocked_after_dispatch(auth_client, customer):
+def test_stage_cancel_blocked_after_dispatch(auth_client, customer, gst18):
     res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
     oid = res.data["id"]
+    _add_item(auth_client, oid, gst18)
     for stage in ["confirmed", "processing", "ready_to_dispatch", "fully_dispatched"]:
         auth_client.post(
             f"/api/v1/orders/{oid}/stage/", {"next_stage": stage}, format="json"
@@ -287,3 +290,36 @@ def test_installation_requirement_create_and_update(auth_client, customer):
     assert patch_res.status_code == 200
     assert patch_res.data['electrical_readiness'] == 'partial'
     assert patch_res.data['site_address'] == '12 Industrial Estate'
+
+
+# ---------------- stage gates -----------------------------------------
+def test_stage_confirm_blocked_without_items(auth_client, customer):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    r = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/", {"next_stage": "confirmed"}, format="json"
+    )
+    assert r.status_code == 400
+    assert "next_stage" in r.data
+
+
+def test_ready_to_dispatch_blocked_by_shortage(auth_client, customer, gst18):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    _add_item(auth_client, oid, gst18)
+    for stage in ["confirmed", "processing"]:
+        auth_client.post(
+            f"/api/v1/orders/{oid}/stage/", {"next_stage": stage}, format="json"
+        )
+    auth_client.post(
+        f"/api/v1/orders/{oid}/material-checklist/",
+        {"description": "Pump 5HP", "required_qty": "10", "status": "shortage"},
+        format="json",
+    )
+    blocked = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/",
+        {"next_stage": "ready_to_dispatch"},
+        format="json",
+    )
+    assert blocked.status_code == 400
+    assert "next_stage" in blocked.data

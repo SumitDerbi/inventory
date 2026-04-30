@@ -88,6 +88,30 @@ STAGE_FLOW: dict[str, tuple[str, ...]] = {
 }
 
 
+def _check_stage_gates(order: SalesOrder, next_stage: str) -> None:
+    """Raise ValidationError if order does not meet preconditions for next_stage."""
+    Status = SalesOrder.Status
+    if next_stage == Status.CONFIRMED:
+        if not order.items.exists():
+            raise ValidationError(
+                {"next_stage": "Cannot confirm order without at least one item."}
+            )
+    if next_stage == Status.READY_TO_DISPATCH:
+        if not order.items.exists():
+            raise ValidationError(
+                {"next_stage": "Cannot mark ready to dispatch without items."}
+            )
+        if order.material_checklists.filter(status="shortage").exists():
+            raise ValidationError(
+                {
+                    "next_stage": (
+                        "Cannot mark ready to dispatch while material checklist "
+                        "has shortages."
+                    )
+                }
+            )
+
+
 @transaction.atomic
 def transition_stage(
     order: SalesOrder,
@@ -109,6 +133,7 @@ def transition_stage(
         )
     if next_stage == SalesOrder.Status.CANCELLED and not cancellation_reason.strip():
         raise ValidationError({"cancellation_reason": "Reason is required to cancel."})
+    _check_stage_gates(order, next_stage)
 
     update_fields: list[str] = ["status", "updated_at"]
     order.status = next_stage
