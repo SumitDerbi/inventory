@@ -12,6 +12,9 @@ from rest_framework.exceptions import ValidationError
 from .models import SalesOrder, SalesOrderItem
 
 
+BULK_MAX_IDS = 200
+
+
 ZERO = Decimal("0.00")
 
 
@@ -352,3 +355,82 @@ def apply_dispatch(
 
 
 
+
+
+# ---------------------------------------------------------------------------
+# Bulk operations
+# ---------------------------------------------------------------------------
+def _validate_ids(ids):
+    if not isinstance(ids, list) or not ids:
+        raise ValidationError({'ids': 'Non-empty list of order ids required.'})
+    if len(ids) > BULK_MAX_IDS:
+        raise ValidationError({'ids': f'Cannot process more than {BULK_MAX_IDS} ids per request.'})
+    return ids
+
+
+def bulk_assign(ids, *, assigned_sales_exec_id, user=None):
+    _validate_ids(ids)
+    from apps.auth_ext.models import User as AppUser
+    if not AppUser.objects.filter(pk=assigned_sales_exec_id).exists():
+        raise ValidationError({'assigned_sales_exec': 'User not found.'})
+    found = {o.id: o for o in SalesOrder.objects.filter(pk__in=ids)}
+    results = []
+    with transaction.atomic():
+        for oid in ids:
+            order = found.get(oid)
+            if not order:
+                results.append({'id': oid, 'status': 'error', 'error': 'not_found'})
+                continue
+            order.assigned_sales_exec_id = assigned_sales_exec_id
+            update_fields = ['assigned_sales_exec', 'updated_at']
+            if user is not None and hasattr(order, 'updated_by_id'):
+                order.updated_by = user
+                update_fields.append('updated_by')
+            order.save(update_fields=update_fields)
+            results.append({'id': oid, 'status': 'ok'})
+    return results
+
+
+def bulk_ready(ids, *, user=None):
+    _validate_ids(ids)
+    found = {o.id: o for o in SalesOrder.objects.filter(pk__in=ids)}
+    results = []
+    for oid in ids:
+        order = found.get(oid)
+        if not order:
+            results.append({'id': oid, 'status': 'error', 'error': 'not_found'})
+            continue
+        try:
+            transition_stage(
+                order,
+                next_stage=SalesOrder.Status.READY_TO_DISPATCH,
+                user=user,
+            )
+            results.append({'id': oid, 'status': 'ok'})
+        except ValidationError as e:
+            results.append({'id': oid, 'status': 'error', 'error': e.detail})
+    return results
+
+
+def bulk_export(ids):
+    _validate_ids(ids)
+    qs = SalesOrder.objects.filter(pk__in=ids).select_related('customer')
+    rows = []
+    found = {o.id for o in qs}
+    by_id = {o.id: o for o in qs}
+    for oid in ids:
+        order = by_id.get(oid)
+        if not order:
+            rows.append({'id': oid, 'status': 'error', 'error': 'not_found'})
+            continue
+        rows.append({
+            'id': order.id,
+            'status': 'ok',
+            'order_number': order.order_number,
+            'customer': order.customer.company_name if order.customer_id else None,
+            'project_name': order.project_name,
+            'order_date': order.order_date.isoformat() if order.order_date else None,
+            'order_status': order.status,
+            'grand_total': str(order.grand_total),
+        })
+    return rows

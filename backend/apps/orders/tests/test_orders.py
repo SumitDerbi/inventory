@@ -497,3 +497,73 @@ def test_dispatch_blocked_before_ready(auth_client, customer, gst18):
     )
     assert r.status_code == 400
     assert 'status' in r.data
+
+
+# ---------------- bulk operations -------------------------------------
+@pytest.fixture
+def sales_user(db, django_user_model):
+    return django_user_model.objects.create_user(
+        username='se', email='se@example.com', password='x',
+        first_name='Se', last_name='Ller',
+    )
+
+
+def test_bulk_assign_partial_failure(auth_client, customer, sales_user):
+    o1 = auth_client.post('/api/v1/orders/', _payload(customer), format='json').data['id']
+    o2 = auth_client.post('/api/v1/orders/', _payload(customer), format='json').data['id']
+    r = auth_client.post(
+        '/api/v1/orders/bulk-assign/',
+        {'ids': [o1, o2, 999999], 'assigned_sales_exec': sales_user.id},
+        format='json',
+    )
+    assert r.status_code == 207
+    statuses = {row['id']: row['status'] for row in r.data['results']}
+    assert statuses[o1] == 'ok'
+    assert statuses[o2] == 'ok'
+    assert statuses[999999] == 'error'
+
+
+def test_bulk_assign_all_success(auth_client, customer, sales_user):
+    o1 = auth_client.post('/api/v1/orders/', _payload(customer), format='json').data['id']
+    r = auth_client.post(
+        '/api/v1/orders/bulk-assign/',
+        {'ids': [o1], 'assigned_sales_exec': sales_user.id},
+        format='json',
+    )
+    assert r.status_code == 200
+    assert r.data['results'][0]['status'] == 'ok'
+
+
+def test_bulk_assign_caps_at_200(auth_client, sales_user):
+    r = auth_client.post(
+        '/api/v1/orders/bulk-assign/',
+        {'ids': list(range(1, 202)), 'assigned_sales_exec': sales_user.id},
+        format='json',
+    )
+    assert r.status_code == 400
+    assert 'ids' in r.data
+
+
+def test_bulk_ready_mixed(auth_client, customer, gst18):
+    # one order ready-eligible, one without items
+    o1 = auth_client.post('/api/v1/orders/', _payload(customer), format='json').data['id']
+    _add_item(auth_client, o1, gst18)
+    for stage in ['confirmed', 'processing']:
+        auth_client.post(f'/api/v1/orders/{o1}/stage/', {'next_stage': stage}, format='json')
+    o2 = auth_client.post('/api/v1/orders/', _payload(customer), format='json').data['id']
+
+    r = auth_client.post('/api/v1/orders/bulk-ready/', {'ids': [o1, o2]}, format='json')
+    assert r.status_code == 207
+    by_id = {row['id']: row for row in r.data['results']}
+    assert by_id[o1]['status'] == 'ok'
+    assert by_id[o2]['status'] == 'error'
+
+
+def test_bulk_export(auth_client, customer):
+    o1 = auth_client.post('/api/v1/orders/', _payload(customer), format='json').data['id']
+    r = auth_client.post('/api/v1/orders/bulk-export/', {'ids': [o1, 999999]}, format='json')
+    assert r.status_code == 207
+    rows = {row['id']: row for row in r.data['results']}
+    assert rows[o1]['status'] == 'ok'
+    assert rows[o1]['order_number'].startswith('SO/')
+    assert rows[999999]['status'] == 'error'

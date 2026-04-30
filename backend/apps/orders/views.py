@@ -27,6 +27,18 @@ from .serializers import (
 )
 
 
+def _bulk_status(results: list[dict]) -> int:
+    if not results:
+        return status.HTTP_200_OK
+    has_err = any(r.get("status") == "error" for r in results)
+    has_ok = any(r.get("status") == "ok" for r in results)
+    if has_err and has_ok:
+        return status.HTTP_207_MULTI_STATUS
+    if has_err:
+        return status.HTTP_400_BAD_REQUEST
+    return status.HTTP_200_OK
+
+
 class SalesOrderViewSet(AuditModelViewSet):
     queryset = SalesOrder.objects.select_related(
         "quotation",
@@ -64,6 +76,39 @@ class SalesOrderViewSet(AuditModelViewSet):
         if hasattr(serializer.Meta.model, "created_by_id"):
             kwargs.update({"created_by": user, "updated_by": user})
         serializer.save(**kwargs)
+
+    # ------------------------------------------------------------------
+    # Bulk operations (200 ids max, 207 partial-failure)
+    # ------------------------------------------------------------------
+    @action(detail=False, methods=["post"], url_path="bulk-assign")
+    def bulk_assign(self, request):
+        ids = request.data.get("ids") or []
+        assigned = request.data.get("assigned_sales_exec")
+        if not assigned:
+            return Response(
+                {"assigned_sales_exec": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = request.user if request.user.is_authenticated else None
+        results = services.bulk_assign(
+            ids, assigned_sales_exec_id=int(assigned), user=user
+        )
+        return Response(
+            {"results": results}, status=_bulk_status(results)
+        )
+
+    @action(detail=False, methods=["post"], url_path="bulk-ready")
+    def bulk_ready(self, request):
+        ids = request.data.get("ids") or []
+        user = request.user if request.user.is_authenticated else None
+        results = services.bulk_ready(ids, user=user)
+        return Response({"results": results}, status=_bulk_status(results))
+
+    @action(detail=False, methods=["post"], url_path="bulk-export")
+    def bulk_export(self, request):
+        ids = request.data.get("ids") or []
+        results = services.bulk_export(ids)
+        return Response({"results": results}, status=_bulk_status(results))
 
     # ------------------------------------------------------------------
     # Items sub-collection
