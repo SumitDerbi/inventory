@@ -33,7 +33,7 @@ class SalesOrderItemSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("created_at", "updated_at", "order")
+        read_only_fields = ("created_at", "updated_at", "order", "line_total")
 
 
 class OrderMilestoneSerializer(serializers.ModelSerializer):
@@ -175,3 +175,8 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
             "assigned_sales_exec",
             "created_at",
         )
+
+
+class StageTransitionSerializer(serializers.Serializer):
+    next_stage = serializers.ChoiceField(choices=SalesOrder.Status.choices)
+    cancellation_reason = serializers.CharField(required=False, allow_blank=True, default="")

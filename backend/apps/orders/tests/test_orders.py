@@ -5,6 +5,7 @@ from datetime import date
 
 import pytest
 
+from apps.core.masters import TaxRule
 from apps.customers.models import Customer
 from apps.orders.models import SalesOrder
 
@@ -20,6 +21,13 @@ def customer(db):
     )
 
 
+@pytest.fixture
+def gst18(db):
+    return TaxRule.objects.create(
+        name="GST 18", tax_type="GST", rate_percent=18, applicable_to="product"
+    )
+
+
 def _payload(customer, **overrides):
     base = {
         "customer": customer.id,
@@ -28,6 +36,20 @@ def _payload(customer, **overrides):
     }
     base.update(overrides)
     return base
+
+
+def _add_item(auth_client, oid, gst18, **overrides):
+    payload = {
+        "product_description": "Centrifugal Pump 5HP",
+        "quantity_ordered": "10",
+        "quantity_pending": "10",
+        "unit": "nos",
+        "unit_price": "10000",
+        "discount_percent": "0",
+        "tax_rule": gst18.id,
+    }
+    payload.update(overrides)
+    return auth_client.post(f"/api/v1/orders/{oid}/items/", payload, format="json")
 
 
 def test_create_assigns_order_number(auth_client, customer):
@@ -100,3 +122,112 @@ def test_soft_delete(auth_client, customer):
     delres = auth_client.delete(f"/api/v1/orders/{oid}/")
     assert delres.status_code == 204
     assert auth_client.get(f"/api/v1/orders/{oid}/").status_code == 404
+
+
+# ---------------- items + recompute -------------------------------------
+def test_add_item_recomputes_totals(auth_client, customer, gst18):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    item_res = _add_item(auth_client, oid, gst18)
+    assert item_res.status_code == 201, item_res.content
+    detail = auth_client.get(f"/api/v1/orders/{oid}/").data
+    assert detail["subtotal"] == "100000.00"
+    assert detail["total_tax"] == "18000.00"
+    assert detail["grand_total"] == "118000.00"
+    assert len(detail["items"]) == 1
+    assert detail["items"][0]["line_total"] == "118000.00"
+
+
+def test_patch_item_recomputes(auth_client, customer, gst18):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    item_res = _add_item(auth_client, oid, gst18)
+    iid = item_res.data["id"]
+    auth_client.patch(
+        f"/api/v1/orders/items/{iid}/", {"quantity_ordered": "5"}, format="json"
+    )
+    detail = auth_client.get(f"/api/v1/orders/{oid}/").data
+    assert detail["subtotal"] == "50000.00"
+    assert detail["grand_total"] == "59000.00"
+
+
+def test_delete_item_recomputes(auth_client, customer, gst18):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    item_res = _add_item(auth_client, oid, gst18)
+    iid = item_res.data["id"]
+    auth_client.delete(f"/api/v1/orders/items/{iid}/")
+    detail = auth_client.get(f"/api/v1/orders/{oid}/").data
+    assert detail["subtotal"] == "0.00"
+    assert detail["grand_total"] == "0.00"
+
+
+# ---------------- stage machine -----------------------------------------
+@pytest.mark.parametrize(
+    "chain",
+    [
+        ["confirmed", "processing", "ready_to_dispatch", "fully_dispatched", "installed", "closed"],
+    ],
+)
+def test_stage_happy_path(auth_client, customer, chain):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    for stage in chain:
+        r = auth_client.post(
+            f"/api/v1/orders/{oid}/stage/", {"next_stage": stage}, format="json"
+        )
+        assert r.status_code == 200, r.content
+        assert r.data["status"] == stage
+
+
+def test_stage_rejects_invalid_jump(auth_client, customer):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    r = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/", {"next_stage": "installed"}, format="json"
+    )
+    assert r.status_code == 400
+    assert "next_stage" in r.data
+
+
+def test_stage_confirm_sets_confirmed_at(auth_client, customer):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    r = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/", {"next_stage": "confirmed"}, format="json"
+    )
+    assert r.status_code == 200
+    assert r.data["confirmed_at"] is not None
+
+
+def test_stage_cancel_requires_reason(auth_client, customer):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    bad = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/", {"next_stage": "cancelled"}, format="json"
+    )
+    assert bad.status_code == 400
+    assert "cancellation_reason" in bad.data
+    good = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/",
+        {"next_stage": "cancelled", "cancellation_reason": "duplicate"},
+        format="json",
+    )
+    assert good.status_code == 200
+    assert good.data["status"] == "cancelled"
+    assert good.data["cancellation_reason"] == "duplicate"
+
+
+def test_stage_cancel_blocked_after_dispatch(auth_client, customer):
+    res = auth_client.post("/api/v1/orders/", _payload(customer), format="json")
+    oid = res.data["id"]
+    for stage in ["confirmed", "processing", "ready_to_dispatch", "fully_dispatched"]:
+        auth_client.post(
+            f"/api/v1/orders/{oid}/stage/", {"next_stage": stage}, format="json"
+        )
+    r = auth_client.post(
+        f"/api/v1/orders/{oid}/stage/",
+        {"next_stage": "cancelled", "cancellation_reason": "x"},
+        format="json",
+    )
+    assert r.status_code == 400
