@@ -870,6 +870,227 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Customer Invoices",
+      "item": [
+        {
+          "name": "Create From Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/customer-invoices/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "customer-invoices", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"invoice_type\": \"tax_invoice\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.invoice_number).to.match(/^INV/);",
+                  "pm.expect(j.status).to.eql('draft');",
+                  "pm.expect(j.items).to.be.an('array').with.lengthOf.at.least(1);",
+                  "pm.environment.set('invoice_id', j.id);",
+                  "pm.environment.set('invoice_item_id', j.items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Invoices For Order",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/customer-invoices/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "customer-invoices", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const rows = j.results || j;",
+                  "pm.expect(rows).to.be.an('array').with.lengthOf.at.least(1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Invoice",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/{{invoice_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "{{invoice_id}}", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(Number(j.grand_total)).to.be.greaterThan(0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/{{invoice_id}}/items/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "{{invoice_id}}", "items", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Spare kit\",\n  \"quantity\": \"1\",\n  \"unit\": \"nos\",\n  \"unit_price\": \"1000\",\n  \"discount_amount\": \"0\",\n  \"tax_percent\": \"18\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.environment.set('invoice_extra_item_id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/items/{{invoice_extra_item_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "items", "{{invoice_extra_item_id}}", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": \"2\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(Number(j.line_total)).to.be.greaterThan(0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aging Buckets",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/aging/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "aging", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j).to.have.all.keys('0-30', '31-60', '61-90', '90+');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalise",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/{{invoice_id}}/finalise/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "{{invoice_id}}", "finalise", ""] },
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().status).to.eql('issued');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Without Reason (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/{{invoice_id}}/cancel/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "{{invoice_id}}", "cancel", ""] },
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 without reason', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk Export",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/bulk-export/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "bulk-export", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": [{{invoice_id}}]\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.results).to.be.an('array').with.lengthOf(1);",
+                  "pm.expect(j.results[0].status).to.eql('ok');",
+                  "pm.expect(j.results[0].invoice_number).to.match(/^INV/);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk Send (empty ids → 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/customer-invoices/bulk-send/", "host": ["{{base_url}}"], "path": ["api", "v1", "customer-invoices", "bulk-send", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": []\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 on empty ids', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
