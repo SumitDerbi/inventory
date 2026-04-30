@@ -53,7 +53,7 @@ def recompute_totals(invoice: Invoice, *, user=None) -> Invoice:
     subtotal = ZERO
     tax_total = ZERO
     grand = ZERO
-    for it in invoice.items.all():
+    for it in InvoiceItem.objects.filter(invoice=invoice):
         taxable, tax_amount, line_total = compute_item_totals(it)
         if (
             it.tax_amount != tax_amount

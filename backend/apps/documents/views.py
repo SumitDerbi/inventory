@@ -87,14 +87,12 @@ class InvoiceViewSet(AuditModelViewSet):
         ser = InvoiceItemSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         user = request.user if request.user.is_authenticated else None
-        save_kwargs = {"invoice": invoice}
+        item = InvoiceItem(invoice=invoice, **ser.validated_data)
+        _, item.tax_amount, item.line_total = services.compute_item_totals(item)
         if hasattr(InvoiceItem, "created_by_id"):
-            save_kwargs.update({"created_by": user, "updated_by": user})
-        item = ser.save(**save_kwargs)
-        taxable, tax_amount, line_total = services.compute_item_totals(item)
-        item.tax_amount = tax_amount
-        item.line_total = line_total
-        item.save(update_fields=["tax_amount", "line_total", "updated_at"])
+            item.created_by = user
+            item.updated_by = user
+        item.save()
         services.recompute_totals(invoice, user=user)
         item.refresh_from_db()
         return Response(
