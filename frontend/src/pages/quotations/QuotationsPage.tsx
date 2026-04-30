@@ -31,6 +31,7 @@ import {
 import { extractErrorMessage } from '@/services/apiClient';
 import { useQuotationsQuery } from '@/hooks/useQuotations';
 import type { QuotationListItem } from '@/services/quotations';
+import { NewQuotationDialog } from './NewQuotationDialog';
 
 const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
     day: '2-digit',
@@ -52,6 +53,7 @@ export default function QuotationsPage() {
     const [toDate, setToDate] = useState('');
     const [minAmount, setMinAmount] = useState('');
     const [maxAmount, setMaxAmount] = useState('');
+    const [createOpen, setCreateOpen] = useState(false);
 
     const quotationsQuery = useQuotationsQuery({
         search: search.trim() || undefined,
@@ -174,14 +176,7 @@ export default function QuotationsPage() {
                 description="Track proposals, revisions, approvals and customer communications."
                 actions={
                     <Button
-                        onClick={() =>
-                            push({
-                                variant: 'info',
-                                title: 'Create flow',
-                                description:
-                                    'Quotations are created from an inquiry — open an inquiry and use "Convert to Quotation".',
-                            })
-                        }
+                        onClick={() => setCreateOpen(true)}
                     >
                         <Plus className="size-4" aria-hidden="true" />
                         New quotation
@@ -305,6 +300,8 @@ export default function QuotationsPage() {
             <p className="mt-3 text-xs text-slate-500">
                 Showing {rows.length} of {quotationsQuery.data?.count ?? 0} quotations.
             </p>
+
+            {createOpen && <NewQuotationDialog onClose={() => setCreateOpen(false)} />}
         </div>
     );
 }
