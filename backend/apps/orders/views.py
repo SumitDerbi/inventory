@@ -114,6 +114,17 @@ class SalesOrderViewSet(AuditModelViewSet):
 
 
     # ------------------------------------------------------------------
+    # MRP availability
+    # ------------------------------------------------------------------
+    @action(detail=True, methods=["get"], url_path="mrp")
+    def mrp(self, request, pk=None):
+        order = self.get_object()
+        rows = services.compute_mrp_availability(order)
+        all_ready = bool(rows) and all(r["ready"] for r in rows)
+        return Response({"items": rows, "all_ready": all_ready})
+
+
+    # ------------------------------------------------------------------
     # Milestones
     # ------------------------------------------------------------------
     @action(detail=True, methods=["get", "post"], url_path="milestones")

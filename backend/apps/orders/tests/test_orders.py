@@ -1,7 +1,7 @@
 """Sales order API tests (Step 07a — list/detail)."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timezone as dt_timezone, datetime
 
 import pytest
 
@@ -323,3 +323,54 @@ def test_ready_to_dispatch_blocked_by_shortage(auth_client, customer, gst18):
     )
     assert blocked.status_code == 400
     assert "next_stage" in blocked.data
+
+
+# ---------------- MRP availability ------------------------------------
+@pytest.fixture
+def product(db):
+    from apps.inventory.models import Product, ProductCategory
+    cat = ProductCategory.objects.create(name='Pumps')
+    return Product.objects.create(
+        product_code='PMP-5HP', name='Centrifugal Pump 5HP',
+        category=cat, unit_of_measure='nos',
+    )
+
+
+@pytest.fixture
+def warehouse(db):
+    from apps.inventory.models import Warehouse
+    return Warehouse.objects.create(name='Main', code='WH-1')
+
+
+def test_mrp_returns_shortfall_when_no_stock(auth_client, customer, gst18, product):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    _add_item(auth_client, oid, gst18, product=product.id)
+    r = auth_client.get(f'/api/v1/orders/{oid}/mrp/')
+    assert r.status_code == 200
+    assert r.data['all_ready'] is False
+    row = r.data['items'][0]
+    assert row['required_qty'] == '10.00'
+    assert row['available'] == '0.00'
+    assert row['shortfall'] == '10.00'
+    assert row['ready'] is False
+
+
+def test_mrp_ready_when_stock_sufficient(auth_client, customer, gst18, product, warehouse):
+    from apps.inventory.models import StockLedger
+    StockLedger.objects.create(
+        product=product, warehouse=warehouse,
+        transaction_type=StockLedger.TransactionType.OPENING,
+        quantity='25', transacted_at=datetime.now(tz=dt_timezone.utc),
+    )
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    _add_item(auth_client, oid, gst18, product=product.id)
+    r = auth_client.get(f'/api/v1/orders/{oid}/mrp/')
+    assert r.status_code == 200
+    row = r.data['items'][0]
+    assert row['on_hand'] == '25.00'
+    assert row['available'] == '25.00'
+    assert row['shortfall'] == '0.00'
+    assert row['ready'] is True
+    assert r.data['all_ready'] is True

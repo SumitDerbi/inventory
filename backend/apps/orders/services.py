@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Iterable
 
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -149,3 +150,55 @@ def transition_stage(
         update_fields.append("updated_by")
     order.save(update_fields=update_fields)
     return order
+
+
+# ---------------------------------------------------------------------------
+# MRP availability
+# ---------------------------------------------------------------------------
+def compute_mrp_availability(order: SalesOrder) -> list[dict]:
+    """Return per-item availability snapshot."""
+    from apps.inventory.models import StockLedger, StockReservation
+
+    rows: list[dict] = []
+    items = list(order.items.select_related("product").all())
+    for item in items:
+        required = _q(item.quantity_pending or item.quantity_ordered)
+        product_id = item.product_id
+        if product_id is None:
+            on_hand = ZERO
+            reserved = ZERO
+        else:
+            on_hand = (
+                StockLedger.objects.filter(product_id=product_id).aggregate(
+                    s=Sum("quantity")
+                )["s"]
+                or ZERO
+            )
+            reserved = (
+                StockReservation.objects.filter(
+                    product_id=product_id,
+                    status=StockReservation.Status.ACTIVE,
+                )
+                .exclude(order_id=order.id)
+                .aggregate(s=Sum("reserved_qty"))["s"]
+                or ZERO
+            )
+        on_hand = _q(on_hand)
+        reserved = _q(reserved)
+        available = _q(on_hand - reserved)
+        shortfall = _q(max(ZERO, required - available))
+        rows.append(
+            {
+                "item_id": item.id,
+                "product_id": product_id,
+                "product_description": item.product_description,
+                "required_qty": str(required),
+                "on_hand": str(on_hand),
+                "reserved": str(reserved),
+                "available": str(available),
+                "shortfall": str(shortfall),
+                "ready": shortfall == ZERO and required > ZERO,
+            }
+        )
+    return rows
+
