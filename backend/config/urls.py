@@ -22,6 +22,7 @@ api_v1_patterns = [
     path("", include("apps.notifications.urls")),
     path("", include("apps.orders.urls")),
     path("", include("apps.quotations.urls")),
+    path("", include("apps.documents.urls")),
 ]
 
 urlpatterns = [
