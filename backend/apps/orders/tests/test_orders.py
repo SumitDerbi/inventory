@@ -374,3 +374,60 @@ def test_mrp_ready_when_stock_sufficient(auth_client, customer, gst18, product, 
     assert row['shortfall'] == '0.00'
     assert row['ready'] is True
     assert r.data['all_ready'] is True
+
+
+# ---------------- reserve / release -----------------------------------
+def test_reserve_blocked_when_short(auth_client, customer, gst18, product, warehouse):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    _add_item(auth_client, oid, gst18, product=product.id)
+    r = auth_client.post(
+        f'/api/v1/orders/{oid}/reserve/', {'warehouse': warehouse.id}, format='json'
+    )
+    assert r.status_code == 400
+    assert 'items' in r.data
+
+
+def test_reserve_and_release_flow(auth_client, customer, gst18, product, warehouse):
+    from apps.inventory.models import StockLedger, StockReservation
+    StockLedger.objects.create(
+        product=product, warehouse=warehouse,
+        transaction_type=StockLedger.TransactionType.OPENING,
+        quantity='25', transacted_at=datetime.now(tz=dt_timezone.utc),
+    )
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    _add_item(auth_client, oid, gst18, product=product.id)
+
+    r = auth_client.post(
+        f'/api/v1/orders/{oid}/reserve/', {'warehouse': warehouse.id}, format='json'
+    )
+    assert r.status_code == 201, r.content
+    assert len(r.data['reservations']) == 1
+    assert r.data['reservations'][0]['skipped'] is False
+
+    r2 = auth_client.post(
+        f'/api/v1/orders/{oid}/reserve/', {'warehouse': warehouse.id}, format='json'
+    )
+    assert r2.status_code == 201
+    assert r2.data['reservations'][0]['skipped'] is True
+
+    assert StockReservation.objects.filter(
+        order_id=oid, status=StockReservation.Status.ACTIVE
+    ).count() == 1
+
+    rel = auth_client.post(f'/api/v1/orders/{oid}/release/')
+    assert rel.status_code == 200
+    assert rel.data['released'] == 1
+    assert StockReservation.objects.filter(
+        order_id=oid, status=StockReservation.Status.ACTIVE
+    ).count() == 0
+
+
+def test_reserve_requires_warehouse(auth_client, customer, gst18, product):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    _add_item(auth_client, oid, gst18, product=product.id)
+    r = auth_client.post(f'/api/v1/orders/{oid}/reserve/', {}, format='json')
+    assert r.status_code == 400
+    assert 'warehouse' in r.data

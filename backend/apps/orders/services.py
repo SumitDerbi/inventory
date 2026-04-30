@@ -202,3 +202,77 @@ def compute_mrp_availability(order: SalesOrder) -> list[dict]:
         )
     return rows
 
+
+# ---------------------------------------------------------------------------
+# Reserve / release
+# ---------------------------------------------------------------------------
+@transaction.atomic
+def reserve_stock(order: SalesOrder, *, warehouse_id: int, user=None) -> list[dict]:
+    """Create active StockReservation rows for each item with a product FK.
+
+    Skips items already having an active reservation (idempotent).
+    Raises ValidationError if any required item has insufficient available stock.
+    """
+    from apps.inventory.models import StockReservation, Warehouse
+
+    if not Warehouse.objects.filter(pk=warehouse_id).exists():
+        raise ValidationError({"warehouse": "Warehouse not found."})
+
+    rows = compute_mrp_availability(order)
+    short = [r for r in rows if not r["ready"] and r["product_id"] is not None]
+    if short:
+        raise ValidationError(
+            {
+                "items": [
+                    {
+                        "item_id": r["item_id"],
+                        "shortfall": r["shortfall"],
+                    }
+                    for r in short
+                ]
+            }
+        )
+
+    created: list[dict] = []
+    items = list(order.items.select_related("product").all())
+    now = timezone.now()
+    for item in items:
+        if item.product_id is None:
+            continue
+        existing = StockReservation.objects.filter(
+            order_item=item, status=StockReservation.Status.ACTIVE
+        ).first()
+        if existing:
+            created.append({"item_id": item.id, "reservation_id": existing.id, "skipped": True})
+            continue
+        kwargs = {
+            "product_id": item.product_id,
+            "warehouse_id": warehouse_id,
+            "order": order,
+            "order_item": item,
+            "reserved_qty": _q(item.quantity_pending or item.quantity_ordered),
+            "reserved_at": now,
+            "status": StockReservation.Status.ACTIVE,
+        }
+        if hasattr(StockReservation, "created_by_id") and user is not None:
+            kwargs.update({"created_by": user, "updated_by": user})
+        res = StockReservation.objects.create(**kwargs)
+        created.append({"item_id": item.id, "reservation_id": res.id, "skipped": False})
+    return created
+
+
+@transaction.atomic
+def release_stock(order: SalesOrder, *, user=None) -> int:
+    """Release all active reservations for the order. Returns count released."""
+    from apps.inventory.models import StockReservation
+
+    qs = StockReservation.objects.filter(
+        order=order, status=StockReservation.Status.ACTIVE
+    )
+    now = timezone.now()
+    update_kwargs = {"status": StockReservation.Status.RELEASED, "released_at": now}
+    if hasattr(StockReservation, "updated_by_id") and user is not None:
+        update_kwargs["updated_by"] = user
+    return qs.update(**update_kwargs)
+
+

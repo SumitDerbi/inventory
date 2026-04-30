@@ -125,6 +125,32 @@ class SalesOrderViewSet(AuditModelViewSet):
 
 
     # ------------------------------------------------------------------
+    # Reserve / release stock
+    # ------------------------------------------------------------------
+    @action(detail=True, methods=["post"], url_path="reserve")
+    def reserve(self, request, pk=None):
+        order = self.get_object()
+        warehouse_id = request.data.get("warehouse")
+        if not warehouse_id:
+            return Response(
+                {"warehouse": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = request.user if request.user.is_authenticated else None
+        result = services.reserve_stock(
+            order, warehouse_id=int(warehouse_id), user=user
+        )
+        return Response({"reservations": result}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="release")
+    def release(self, request, pk=None):
+        order = self.get_object()
+        user = request.user if request.user.is_authenticated else None
+        released = services.release_stock(order, user=user)
+        return Response({"released": released})
+
+
+    # ------------------------------------------------------------------
     # Milestones
     # ------------------------------------------------------------------
     @action(detail=True, methods=["get", "post"], url_path="milestones")
