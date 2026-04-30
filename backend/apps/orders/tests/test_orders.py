@@ -231,3 +231,59 @@ def test_stage_cancel_blocked_after_dispatch(auth_client, customer):
         format="json",
     )
     assert r.status_code == 400
+
+
+# ---------------- sub-resources ---------------------------------------
+def test_milestones_list_and_create(auth_client, customer):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    empty = auth_client.get(f'/api/v1/orders/{oid}/milestones/')
+    assert empty.status_code == 200
+    assert empty.data == []
+    created = auth_client.post(
+        f'/api/v1/orders/{oid}/milestones/',
+        {'milestone_name': 'PI', 'target_date': '2026-05-15', 'status': 'pending'},
+        format='json',
+    )
+    assert created.status_code == 201, created.content
+    assert created.data['milestone_name'] == 'PI'
+    listed = auth_client.get(f'/api/v1/orders/{oid}/milestones/')
+    assert len(listed.data) == 1
+
+
+def test_material_checklist_list_and_create(auth_client, customer):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    empty = auth_client.get(f'/api/v1/orders/{oid}/material-checklist/')
+    assert empty.status_code == 200
+    assert empty.data == []
+    created = auth_client.post(
+        f'/api/v1/orders/{oid}/material-checklist/',
+        {'description': 'Pump 5HP', 'required_qty': '10', 'status': 'shortage'},
+        format='json',
+    )
+    assert created.status_code == 201, created.content
+    assert created.data['description'] == 'Pump 5HP'
+
+
+def test_installation_requirement_create_and_update(auth_client, customer):
+    res = auth_client.post('/api/v1/orders/', _payload(customer), format='json')
+    oid = res.data['id']
+    empty = auth_client.get(f'/api/v1/orders/{oid}/installation-requirement/')
+    assert empty.status_code == 200
+    assert empty.data is None
+    put_res = auth_client.put(
+        f'/api/v1/orders/{oid}/installation-requirement/',
+        {'site_address': '12 Industrial Estate', 'civil_readiness': 'ready'},
+        format='json',
+    )
+    assert put_res.status_code == 201, put_res.content
+    assert put_res.data['site_address'] == '12 Industrial Estate'
+    patch_res = auth_client.patch(
+        f'/api/v1/orders/{oid}/installation-requirement/',
+        {'electrical_readiness': 'partial'},
+        format='json',
+    )
+    assert patch_res.status_code == 200
+    assert patch_res.data['electrical_readiness'] == 'partial'
+    assert patch_res.data['site_address'] == '12 Industrial Estate'

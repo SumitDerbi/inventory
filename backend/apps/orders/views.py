@@ -9,8 +9,17 @@ from apps.core.views import AuditModelViewSet
 from apps.quotations.services import next_order_number
 
 from . import services
-from .models import SalesOrder, SalesOrderItem
+from .models import (
+    InstallationRequirement,
+    MaterialChecklist,
+    OrderMilestone,
+    SalesOrder,
+    SalesOrderItem,
+)
 from .serializers import (
+    InstallationRequirementSerializer,
+    MaterialChecklistSerializer,
+    OrderMilestoneSerializer,
     SalesOrderItemSerializer,
     SalesOrderListSerializer,
     SalesOrderSerializer,
@@ -102,6 +111,84 @@ class SalesOrderViewSet(AuditModelViewSet):
             cancellation_reason=ser.validated_data.get("cancellation_reason", ""),
         )
         return Response(SalesOrderSerializer(order).data)
+
+
+    # ------------------------------------------------------------------
+    # Milestones
+    # ------------------------------------------------------------------
+    @action(detail=True, methods=["get", "post"], url_path="milestones")
+    def milestones(self, request, pk=None):
+        order = self.get_object()
+        if request.method == "GET":
+            return Response(
+                OrderMilestoneSerializer(order.milestones.all(), many=True).data
+            )
+        ser = OrderMilestoneSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        user = request.user if request.user.is_authenticated else None
+        save_kwargs = {"order": order}
+        if hasattr(OrderMilestone, "created_by_id"):
+            save_kwargs.update({"created_by": user, "updated_by": user})
+        obj = ser.save(**save_kwargs)
+        return Response(
+            OrderMilestoneSerializer(obj).data, status=status.HTTP_201_CREATED
+        )
+
+    # ------------------------------------------------------------------
+    # Material checklist
+    # ------------------------------------------------------------------
+    @action(detail=True, methods=["get", "post"], url_path="material-checklist")
+    def material_checklist(self, request, pk=None):
+        order = self.get_object()
+        if request.method == "GET":
+            return Response(
+                MaterialChecklistSerializer(
+                    order.material_checklists.all(), many=True
+                ).data
+            )
+        ser = MaterialChecklistSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        user = request.user if request.user.is_authenticated else None
+        save_kwargs = {"order": order}
+        if hasattr(MaterialChecklist, "created_by_id"):
+            save_kwargs.update({"created_by": user, "updated_by": user})
+        obj = ser.save(**save_kwargs)
+        return Response(
+            MaterialChecklistSerializer(obj).data, status=status.HTTP_201_CREATED
+        )
+
+    # ------------------------------------------------------------------
+    # Installation requirement (1:1)
+    # ------------------------------------------------------------------
+    @action(
+        detail=True,
+        methods=["get", "put", "patch"],
+        url_path="installation-requirement",
+    )
+    def installation_requirement(self, request, pk=None):
+        order = self.get_object()
+        existing = getattr(order, "installation_requirement", None)
+        if request.method == "GET":
+            if existing is None:
+                return Response(None)
+            return Response(InstallationRequirementSerializer(existing).data)
+        user = request.user if request.user.is_authenticated else None
+        partial = request.method == "PATCH"
+        ser = InstallationRequirementSerializer(
+            existing, data=request.data, partial=partial
+        )
+        ser.is_valid(raise_exception=True)
+        save_kwargs = {"order": order}
+        if hasattr(InstallationRequirement, "created_by_id"):
+            if existing is None:
+                save_kwargs.update({"created_by": user, "updated_by": user})
+            else:
+                save_kwargs.update({"updated_by": user})
+        obj = ser.save(**save_kwargs)
+        out_status = (
+            status.HTTP_201_CREATED if existing is None else status.HTTP_200_OK
+        )
+        return Response(InstallationRequirementSerializer(obj).data, status=out_status)
 
 
 class SalesOrderItemViewSet(viewsets.ModelViewSet):
