@@ -627,6 +627,249 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Orders",
+      "description": "Sales-order lifecycle: list, items CRUD, stage transitions, MRP, dispatch, bulk. Depends on order_id set by Quotations > Convert to Order.",
+      "item": [
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/orders/?page_size=5&ordering=-order_date", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", ""], "query": [{"key": "page_size", "value": "5"}, {"key": "ordering", "value": "-order_date"}] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j).to.have.property('results');",
+                  "pm.expect(j.results).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.order_number).to.match(/^SO/);",
+                  "pm.expect(j.items).to.be.an('array');",
+                  "if (j.items.length > 0) { pm.environment.set('order_item_id', j.items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/items/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "items", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"product_description\": \"Postman extra item\",\n  \"quantity_ordered\": \"3\",\n  \"unit\": \"nos\",\n  \"unit_price\": \"1000\",\n  \"discount_percent\": \"0\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.expect(Number(j.quantity_ordered)).to.eql(3);",
+                  "pm.environment.set('order_extra_item_id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/items/{{order_extra_item_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "items", "{{order_extra_item_id}}", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity_ordered\": \"5\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(Number(pm.response.json().quantity_ordered)).to.eql(5);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stage: confirmed",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/stage/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "stage", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"next_stage\": \"confirmed\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 200 if transition succeeded, 400 if order is already past confirmed (e.g. converted via quotation already in confirmed).",
+                  "pm.test('200 or 400', () => pm.expect([200, 400]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stage: processing",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/stage/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "stage", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"next_stage\": \"processing\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().status).to.eql('processing');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MRP",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/mrp/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "mrp", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j).to.have.property('items');",
+                  "pm.expect(j).to.have.property('all_ready');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stage: ready_to_dispatch",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/stage/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "stage", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"next_stage\": \"ready_to_dispatch\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().status).to.eql('ready_to_dispatch');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dispatch (partial)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}/dispatch/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "{{order_id}}", "dispatch", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    {\"item_id\": {{order_item_id}}, \"quantity\": \"1\"}\n  ]\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const status = pm.response.json().status;",
+                  "pm.expect(['partially_dispatched', 'fully_dispatched']).to.include(status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk Export",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/bulk-export/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "bulk-export", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": [{{order_id}}]\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.expect(j.results).to.be.an('array').with.lengthOf(1);",
+                  "pm.expect(j.results[0].status).to.eql('ok');",
+                  "pm.expect(j.results[0].order_number).to.match(/^SO/);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk Ready (id-cap validation)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/bulk-ready/", "host": ["{{base_url}}"], "path": ["api", "v1", "orders", "bulk-ready", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": []\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 on empty ids', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
