@@ -1,36 +1,23 @@
-import { useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-    AlertTriangle,
     ArrowLeft,
     ArrowRight,
     Ban,
-    Calendar,
     CheckCircle2,
-    ChevronDown,
-    Clock,
-    FileText,
     Loader2,
-    MapPin,
     Package,
     Pencil,
-    Phone,
     Plus,
-    ShieldAlert,
+    RefreshCcw,
+    Trash2,
     Truck,
-    Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { EmptyState } from '@/components/ui/EmptyState';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/DropdownMenu';
 import {
     Dialog,
     DialogBody,
@@ -43,1322 +30,702 @@ import {
 import { FormField, Input, Textarea } from '@/components/ui/FormField';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
-import { formatINR, formatRelative } from '@/lib/format';
+import { formatINR } from '@/lib/format';
+import { extractErrorMessage } from '@/services/apiClient';
 import {
-    canAdvanceTo,
-    canCancel,
-    canCreateDispatch,
-    canRaiseInvoice,
-    isTerminal,
-    STEPPER_STAGES,
-    stageIndex,
-    stageLabel,
-    type OrderStage,
-} from '@/lib/orderStatus';
-import {
-    orderById,
-    itemPending,
-    type DeliveryPlan,
-    type MrpRow,
-    type OrderActivity,
-    type OrderDocument,
-    type OrderLineItem,
-    type SalesOrder,
-} from '@/mocks/orders';
-import { userById } from '@/mocks/users';
-import { invoicesForOrder } from '@/mocks/customer-invoices';
-import { CustomerInvoiceTable } from '@/components/customer-invoices/CustomerInvoiceTable';
-import { CustomerInvoiceForm } from '@/components/customer-invoices/CustomerInvoiceForm';
+    useAddOrderItem,
+    useDeleteOrderItem,
+    useDispatchItems,
+    useOrderMrp,
+    useOrderQuery,
+    useReleaseStock,
+    useReserveStock,
+    useTransitionStage,
+    useUpdateOrderItem,
+} from '@/hooks/useOrders';
+import type {
+    OrderApiStatus,
+    OrderItem,
+    OrderItemWritePayload,
+} from '@/services/orders';
 
-type TabKey =
-    | 'items'
-    | 'delivery'
-    | 'mrp'
-    | 'installation'
-    | 'invoices'
-    | 'documents'
-    | 'activity';
+// ---------------------------------------------------------------------------
+// Stage helpers (API-aligned)
+// ---------------------------------------------------------------------------
 
-const TABS: Array<{ key: TabKey; label: string }> = [
-    { key: 'items', label: 'Items' },
-    { key: 'delivery', label: 'Delivery Plan' },
-    { key: 'mrp', label: 'Material Readiness' },
-    { key: 'installation', label: 'Installation Readiness' },
-    { key: 'invoices', label: 'Invoices' },
-    { key: 'documents', label: 'Documents' },
-    { key: 'activity', label: 'Activity' },
+const STATUS_LABEL: Record<OrderApiStatus, string> = {
+    draft: 'Draft',
+    confirmed: 'Confirmed',
+    processing: 'Processing',
+    ready_to_dispatch: 'Ready',
+    partially_dispatched: 'Partially dispatched',
+    fully_dispatched: 'Dispatched',
+    installed: 'Installed',
+    closed: 'Closed',
+    cancelled: 'Cancelled',
+};
+
+const STEPPER: OrderApiStatus[] = [
+    'draft',
+    'confirmed',
+    'processing',
+    'ready_to_dispatch',
+    'fully_dispatched',
+    'installed',
+    'closed',
 ];
 
-const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-});
+// Mirrors backend STAGE_FLOW.
+const NEXT_STAGE: Partial<Record<OrderApiStatus, OrderApiStatus>> = {
+    draft: 'confirmed',
+    confirmed: 'processing',
+    processing: 'ready_to_dispatch',
+    ready_to_dispatch: 'partially_dispatched',
+    partially_dispatched: 'fully_dispatched',
+    fully_dispatched: 'installed',
+    installed: 'closed',
+};
 
-function fmtDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    return DATE_FMT.format(new Date(iso));
+function isTerminal(s: OrderApiStatus): boolean {
+    return s === 'closed' || s === 'cancelled';
 }
 
-function fmtDateTime(iso: string): string {
-    return new Date(iso).toLocaleString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+function canCancel(s: OrderApiStatus): boolean {
+    // Backend allows cancel pre-dispatch.
+    return ['draft', 'confirmed', 'processing', 'ready_to_dispatch'].includes(s);
 }
+
+function stepperIndex(s: OrderApiStatus): number {
+    if (s === 'partially_dispatched') return STEPPER.indexOf('ready_to_dispatch');
+    if (s === 'cancelled') return -1;
+    return STEPPER.indexOf(s);
+}
+
+function fmtNum(v: number | string): string {
+    const n = Number(v);
+    return Number.isInteger(n) ? String(n) : n.toFixed(3).replace(/\.?0+$/, '');
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+type TabKey = 'items' | 'mrp';
 
 export default function OrderDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { push } = useToast();
 
-    const order = orderById(id ?? '');
+    const orderQuery = useOrderQuery(id);
+    const order = orderQuery.data;
 
     const [tab, setTab] = useState<TabKey>('items');
-    const [advanceTarget, setAdvanceTarget] = useState<OrderStage | null>(null);
-    const [cancelOpen, setCancelOpen] = useState(false);
-    const [amendOpen, setAmendOpen] = useState(false);
+    const [itemDialog, setItemDialog] = useState<
+        { mode: 'add' } | { mode: 'edit'; item: OrderItem } | null
+    >(null);
+    const [deleteItem, setDeleteItem] = useState<OrderItem | null>(null);
+    const [reserveOpen, setReserveOpen] = useState(false);
     const [dispatchOpen, setDispatchOpen] = useState(false);
-    const [invoiceOpen, setInvoiceOpen] = useState(false);
-    const [addDeliveryOpen, setAddDeliveryOpen] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
 
-    if (!order) {
-        return <Navigate to="/orders" replace />;
+    const transitionMut = useTransitionStage(id!);
+    const releaseMut = useReleaseStock(id!);
+
+    if (!id) return null;
+
+    if (orderQuery.isLoading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center text-sm text-slate-500">
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                Loading order…
+            </div>
+        );
     }
 
-    const owner = userById(order.ownerId);
-    const terminal = isTerminal(order.stage);
-    const nextStage =
-        stageIndex(order.stage) >= 0 &&
-            stageIndex(order.stage) < STEPPER_STAGES.length - 1
-            ? STEPPER_STAGES[stageIndex(order.stage) + 1]
-            : null;
-    const hasShortage = order.mrp.some((m) => m.shortage > 0);
-    const installationReady =
-        order.installation.civilReady &&
-        order.installation.electricalReady &&
-        order.installation.approvalsReceived;
+    if (orderQuery.isError || !order) {
+        return (
+            <div className="p-6 md:p-8">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/orders')}>
+                    <ArrowLeft className="size-4" aria-hidden="true" /> Back to orders
+                </Button>
+                <ErrorAlert
+                    variant="danger"
+                    title="Failed to load order"
+                    description={
+                        orderQuery.error ? extractErrorMessage(orderQuery.error) : 'Order not found.'
+                    }
+                    className="mt-4"
+                />
+            </div>
+        );
+    }
+
+    const next = NEXT_STAGE[order.status];
+
+    async function advance() {
+        if (!next) return;
+        try {
+            await transitionMut.mutateAsync({ nextStage: next });
+            push({ variant: 'success', title: `Moved to ${STATUS_LABEL[next]}` });
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: 'Stage transition failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
+
+    async function release() {
+        try {
+            const r = await releaseMut.mutateAsync();
+            push({
+                variant: 'success',
+                title: `Released ${r.released} reservation${r.released === 1 ? '' : 's'}`,
+            });
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: 'Release failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
 
     return (
         <div className="p-6 md:p-8">
-            <button
-                type="button"
-                onClick={() => navigate('/orders')}
-                className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
-            >
-                <ArrowLeft className="size-3.5" aria-hidden="true" />
-                Back to orders
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/orders')}>
+                <ArrowLeft className="size-4" aria-hidden="true" /> Back to orders
+            </Button>
 
             {/* Header */}
-            <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="text-xl font-semibold text-slate-800 md:text-2xl">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-semibold text-slate-900">
                             {order.orderNumber}
                         </h1>
-                        <StatusBadge status={stageLabel(order.stage)} />
-                        {order.pendingApproval && (
-                            <Badge tone="amber">
-                                {order.pendingApproval.type === 'cancellation'
-                                    ? 'Cancellation pending'
-                                    : 'Amendment pending'}
-                            </Badge>
-                        )}
+                        <StatusBadge status={STATUS_LABEL[order.status]} />
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
-                        <Link
-                            to={`/quotations/${order.quotationId}`}
-                            className="text-primary hover:underline"
-                        >
-                            {order.quotationNumber}
-                        </Link>
-                        {' · '}
-                        {order.customerName} · {order.companyName} · {order.projectName} ·
-                        Owner {owner?.name ?? '—'}
+                        {order.projectName || '—'}
+                        {order.quotationId && (
+                            <>
+                                {' · '}
+                                <Link
+                                    to={`/quotations/${order.quotationId}`}
+                                    className="text-primary hover:underline"
+                                >
+                                    Source quotation
+                                </Link>
+                            </>
+                        )}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    {canCreateDispatch(order.stage) && (
-                        <Button onClick={() => setDispatchOpen(true)}>
-                            <Truck className="size-4" aria-hidden="true" />
-                            Create Dispatch
-                        </Button>
-                    )}
-                    {canRaiseInvoice(order.stage) && (
-                        <Button variant="outline" onClick={() => setInvoiceOpen(true)}>
-                            <FileText className="size-4" aria-hidden="true" />
-                            Raise Invoice
-                        </Button>
-                    )}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                Actions
-                                <ChevronDown className="size-4" aria-hidden="true" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                onSelect={() => setAmendOpen(true)}
-                                disabled={terminal}
-                            >
-                                <Pencil className="size-4" aria-hidden="true" />
-                                Request Amendment
-                            </DropdownMenuItem>
-                            {nextStage && (
-                                <DropdownMenuItem
-                                    onSelect={() => setAdvanceTarget(nextStage)}
-                                >
-                                    <ArrowRight className="size-4" aria-hidden="true" />
-                                    Advance to {stageLabel(nextStage)}
-                                </DropdownMenuItem>
-                            )}
-                            {canCancel(order.stage) && (
-                                <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        destructive
-                                        onSelect={() => setCancelOpen(true)}
-                                    >
-                                        <Ban className="size-4" aria-hidden="true" />
-                                        Cancel order
-                                    </DropdownMenuItem>
-                                </>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-
-            {order.pendingApproval && (
-                <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-                    <ShieldAlert
-                        className="mt-0.5 size-4 shrink-0 text-amber-600"
-                        aria-hidden="true"
-                    />
-                    <div className="min-w-0 flex-1">
-                        <p className="font-medium text-amber-800">
-                            {order.pendingApproval.type === 'cancellation'
-                                ? 'Cancellation awaiting approval'
-                                : 'Amendment awaiting approval'}
-                        </p>
-                        <p className="text-xs text-amber-700">
-                            {order.pendingApproval.reason} · Requested by{' '}
-                            {userById(order.pendingApproval.requestedBy)?.name ?? '—'} ·{' '}
-                            {formatRelative(order.pendingApproval.requestedAt)}
-                        </p>
-                    </div>
                     <Button
-                        size="sm"
                         variant="outline"
-                        onClick={() =>
-                            push({
-                                variant: 'success',
-                                title: 'Request approved',
-                                description: order.orderNumber,
-                            })
+                        onClick={() => setReserveOpen(true)}
+                        disabled={isTerminal(order.status)}
+                    >
+                        <Package className="size-4" aria-hidden="true" /> Reserve stock
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={release}
+                        disabled={isTerminal(order.status) || releaseMut.isPending}
+                    >
+                        <RefreshCcw className="size-4" aria-hidden="true" /> Release
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setDispatchOpen(true)}
+                        disabled={
+                            !['ready_to_dispatch', 'partially_dispatched'].includes(order.status)
                         }
                     >
-                        Approve
+                        <Truck className="size-4" aria-hidden="true" /> Dispatch
                     </Button>
+                    {next && (
+                        <Button onClick={advance} disabled={transitionMut.isPending}>
+                            <ArrowRight className="size-4" aria-hidden="true" />
+                            Advance to {STATUS_LABEL[next]}
+                        </Button>
+                    )}
+                    {canCancel(order.status) && (
+                        <Button variant="outline" onClick={() => setCancelOpen(true)}>
+                            <Ban className="size-4" aria-hidden="true" /> Cancel
+                        </Button>
+                    )}
                 </div>
-            )}
+            </div>
 
             {/* Stepper */}
-            <StageStepper
-                current={order.stage}
-                onSelect={(s) => {
-                    if (canAdvanceTo(order.stage, s)) {
-                        setAdvanceTarget(s);
-                    }
-                }}
-            />
-
-            {/* Summary strip */}
-            <div className="mb-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-4">
-                <Stat label="Total value" value={formatINR(order.totalValue)} />
-                <Stat label="Expected delivery" value={fmtDate(order.expectedDeliveryDate)} />
-                <Stat
-                    label="Material readiness"
-                    value={hasShortage ? 'Shortage' : 'In stock'}
-                    valueClassName={hasShortage ? 'text-red-600' : 'text-emerald-700'}
-                />
-                <Stat
-                    label="Install readiness"
-                    value={installationReady ? 'Ready' : 'Pending'}
-                    valueClassName={
-                        installationReady ? 'text-emerald-700' : 'text-amber-700'
-                    }
-                />
+            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+                <Stepper status={order.status} />
             </div>
 
-            {hasShortage && (
-                <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
-                    <ShieldAlert className="mt-0.5 size-4 shrink-0 text-red-600" aria-hidden="true" />
-                    <div className="min-w-0 flex-1">
-                        <p className="font-medium text-red-800">Material shortage detected</p>
-                        <ul className="mt-1 space-y-0.5 text-xs text-red-700">
-                            {order.mrp
-                                .filter((m) => m.shortage > 0)
-                                .slice(0, 5)
-                                .map((m) => (
-                                    <li key={m.productId}>
-                                        {m.description} — short {m.shortage}
-                                    </li>
-                                ))}
-                        </ul>
-                    </div>
-                    <Button
-                        size="sm"
-                        onClick={() => {
-                            push({
-                                variant: 'success',
-                                title: 'PR draft created',
-                                description: `${order.mrp.filter((m) => m.shortage > 0).length} short item(s) queued.`,
-                            });
-                            navigate(`/purchase/requisitions?source=sales_order&id=${order.id}`);
-                        }}
-                    >
-                        Raise PR
-                    </Button>
-                </div>
-            )}
+            {/* Summary tiles */}
+            <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Tile label="Order date" value={order.orderDate || '—'} />
+                <Tile label="Subtotal" value={formatINR(order.subtotal)} />
+                <Tile label="Tax" value={formatINR(order.totalTax)} />
+                <Tile label="Grand total" value={formatINR(order.grandTotal)} bold />
+            </div>
 
             {/* Tabs */}
-            <div
-                role="tablist"
-                aria-label="Order sections"
-                className="mb-4 flex flex-wrap gap-1 border-b border-slate-200"
-            >
-                {TABS.map((t) => {
-                    const count =
-                        t.key === 'items'
-                            ? order.items.length
-                            : t.key === 'delivery'
-                                ? order.deliveryPlans.length
-                                : t.key === 'mrp'
-                                    ? order.mrp.length
-                                    : t.key === 'invoices'
-                                        ? invoicesForOrder(order.id).length
-                                        : t.key === 'documents'
-                                            ? order.documents.length
-                                            : t.key === 'activity'
-                                                ? order.activity.length
-                                                : null;
-                    return (
+            <div className="mt-6 border-b border-slate-200">
+                <nav className="-mb-px flex gap-6 text-sm">
+                    {(['items', 'mrp'] as TabKey[]).map((k) => (
                         <button
-                            key={t.key}
+                            key={k}
                             type="button"
-                            role="tab"
-                            aria-selected={tab === t.key}
-                            tabIndex={tab === t.key ? 0 : -1}
-                            onClick={() => setTab(t.key)}
+                            onClick={() => setTab(k)}
                             className={cn(
-                                'relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
-                                tab === t.key
-                                    ? 'text-primary'
-                                    : 'text-slate-500 hover:text-slate-700',
+                                'border-b-2 px-1 pb-3 pt-2 font-medium transition-colors',
+                                tab === k
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700',
                             )}
                         >
-                            {t.label}
-                            {count !== null && count > 0 && (
-                                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                                    {count}
-                                </span>
-                            )}
-                            {tab === t.key && (
-                                <span
-                                    aria-hidden="true"
-                                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
-                                />
-                            )}
+                            {k === 'items' ? 'Items' : 'Material Readiness'}
                         </button>
-                    );
-                })}
+                    ))}
+                </nav>
             </div>
 
-            {tab === 'items' && <ItemsTab items={order.items} />}
-            {tab === 'delivery' && (
-                <DeliveryTab
-                    plans={order.deliveryPlans}
-                    onAdd={() => setAddDeliveryOpen(true)}
-                />
-            )}
-            {tab === 'mrp' && <MrpTab rows={order.mrp} />}
-            {tab === 'installation' && <InstallationTab order={order} />}
-            {tab === 'invoices' && <InvoicesTab orderId={order.id} onRaise={() => setInvoiceOpen(true)} />}
-            {tab === 'documents' && <DocumentsTab documents={order.documents} />}
-            {tab === 'activity' && <ActivityTab activity={order.activity} />}
+            <div className="mt-4">
+                {tab === 'items' && (
+                    <ItemsTab
+                        order={order}
+                        onAdd={() => setItemDialog({ mode: 'add' })}
+                        onEdit={(it) => setItemDialog({ mode: 'edit', item: it })}
+                        onDelete={(it) => setDeleteItem(it)}
+                    />
+                )}
+                {tab === 'mrp' && <MrpTab orderId={order.id} />}
+            </div>
 
             {/* Dialogs */}
-            <StageAdvanceDialog
-                open={advanceTarget !== null}
-                onOpenChange={(o) => !o && setAdvanceTarget(null)}
-                order={order}
-                target={advanceTarget}
-                hasShortage={hasShortage}
-                installationReady={installationReady}
-                onConfirm={() => {
-                    push({
-                        variant: 'success',
-                        title: `Moved to ${stageLabel(advanceTarget!)}`,
-                        description: order.orderNumber,
-                    });
-                    setAdvanceTarget(null);
-                }}
-            />
-            <CancelOrderDialog
-                open={cancelOpen}
-                onOpenChange={setCancelOpen}
-                order={order}
-            />
-            <AmendmentDialog
-                open={amendOpen}
-                onOpenChange={setAmendOpen}
-                order={order}
-            />
-            <CreateDispatchDialog
-                open={dispatchOpen}
-                onOpenChange={setDispatchOpen}
-                order={order}
-            />
-            <CustomerInvoiceForm
-                open={invoiceOpen}
-                onOpenChange={setInvoiceOpen}
-                mode={{ kind: 'from-so', orderId: order.id }}
-                onCreated={(inv) => navigate(`/sales/invoices/${inv.id}`)}
-            />
-            <AddDeliveryDialog
-                open={addDeliveryOpen}
-                onOpenChange={setAddDeliveryOpen}
-                order={order}
-            />
-        </div>
-    );
-}
-
-/* ------------------------------ Stepper ------------------------------ */
-
-function StageStepper({
-    current,
-    onSelect,
-}: {
-    current: OrderStage;
-    onSelect: (s: OrderStage) => void;
-}) {
-    const isCancelled = current === 'cancelled';
-    const isOnHold = current === 'on_hold';
-    const currentIdx = stageIndex(current);
-
-    return (
-        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
-            {(isCancelled || isOnHold) && (
-                <div className="mb-3 flex items-center gap-2 text-sm">
-                    <AlertTriangle
-                        className="size-4 text-amber-600"
-                        aria-hidden="true"
-                    />
-                    <span className="text-slate-700">
-                        Order is{' '}
-                        <strong>{stageLabel(current)}</strong>; stepper shows the last
-                        reached linear stage.
-                    </span>
-                </div>
-            )}
-            <ol className="flex flex-wrap items-center gap-2">
-                {STEPPER_STAGES.map((s, idx) => {
-                    const reached = currentIdx >= idx && !isCancelled;
-                    const active = currentIdx === idx && !isCancelled;
-                    const canClick = idx === currentIdx + 1 && !isCancelled && !isOnHold;
-                    return (
-                        <li key={s} className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                disabled={!canClick}
-                                onClick={() => onSelect(s)}
-                                className={cn(
-                                    'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
-                                    reached
-                                        ? 'border-primary bg-primary text-white'
-                                        : 'border-slate-200 bg-white text-slate-500',
-                                    active && 'ring-2 ring-primary/30',
-                                    canClick &&
-                                    'cursor-pointer hover:bg-primary/10 hover:text-primary',
-                                    !canClick && 'cursor-default',
-                                )}
-                            >
-                                <span
-                                    className={cn(
-                                        'grid size-5 place-items-center rounded-full text-[10px]',
-                                        reached
-                                            ? 'bg-white/20 text-white'
-                                            : 'bg-slate-100 text-slate-500',
-                                    )}
-                                >
-                                    {reached ? (
-                                        <CheckCircle2
-                                            className="size-3"
-                                            aria-hidden="true"
-                                        />
-                                    ) : (
-                                        idx + 1
-                                    )}
-                                </span>
-                                {stageLabel(s)}
-                            </button>
-                            {idx < STEPPER_STAGES.length - 1 && (
-                                <ArrowRight
-                                    className="size-3 text-slate-300"
-                                    aria-hidden="true"
-                                />
-                            )}
-                        </li>
-                    );
-                })}
-            </ol>
-        </div>
-    );
-}
-
-/* ------------------------------ Items Tab ------------------------------ */
-
-function ItemsTab({ items }: { items: OrderLineItem[] }) {
-    return (
-        <Card title={`Order items (${items.length})`}>
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th className="px-3 py-2 text-left font-semibold">Product</th>
-                            <th className="px-3 py-2 text-right font-semibold">Ordered</th>
-                            <th className="px-3 py-2 text-right font-semibold">Reserved</th>
-                            <th className="px-3 py-2 text-right font-semibold">Dispatched</th>
-                            <th className="px-3 py-2 text-right font-semibold">Pending</th>
-                            <th className="px-3 py-2 text-right font-semibold">Backorder</th>
-                            <th className="px-3 py-2 text-right font-semibold">Rate</th>
-                            <th className="px-3 py-2 text-right font-semibold">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {items.map((li) => {
-                            const pending = itemPending(li);
-                            const pct =
-                                li.orderedQty > 0
-                                    ? Math.round((li.dispatchedQty / li.orderedQty) * 100)
-                                    : 0;
-                            return (
-                                <tr
-                                    key={li.id}
-                                    className="border-t border-slate-100 align-top"
-                                >
-                                    <td className="px-3 py-2">
-                                        <p className="font-medium text-slate-800">
-                                            {li.description}
-                                        </p>
-                                        {li.specNotes && (
-                                            <p className="text-xs text-slate-500">
-                                                {li.specNotes}
-                                            </p>
-                                        )}
-                                        <div className="mt-1 h-1 w-40 overflow-hidden rounded-full bg-slate-100">
-                                            <div
-                                                className="h-full bg-primary"
-                                                style={{ width: `${pct}%` }}
-                                            />
-                                        </div>
-                                        <p className="mt-0.5 text-[10px] text-slate-400">
-                                            {pct}% dispatched
-                                        </p>
-                                    </td>
-                                    <td className="px-3 py-2 text-right text-slate-700">
-                                        {li.orderedQty} {li.uom}
-                                    </td>
-                                    <td className="px-3 py-2 text-right text-slate-600">
-                                        {li.reservedQty}
-                                    </td>
-                                    <td className="px-3 py-2 text-right text-slate-600">
-                                        {li.dispatchedQty}
-                                    </td>
-                                    <td className="px-3 py-2 text-right text-slate-700">
-                                        {pending}
-                                    </td>
-                                    <td
-                                        className={cn(
-                                            'px-3 py-2 text-right',
-                                            li.backorderQty > 0
-                                                ? 'font-semibold text-red-600'
-                                                : 'text-slate-600',
-                                        )}
-                                    >
-                                        {li.backorderQty}
-                                    </td>
-                                    <td className="px-3 py-2 text-right text-slate-600">
-                                        {formatINR(li.netPrice)}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-semibold text-slate-800">
-                                        {formatINR(li.netPrice * li.orderedQty)}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </Card>
-    );
-}
-
-/* ------------------------------ Delivery ------------------------------ */
-
-function DeliveryTab({
-    plans,
-    onAdd,
-}: {
-    plans: DeliveryPlan[];
-    onAdd: () => void;
-}) {
-    return (
-        <Card
-            title={`Delivery schedule (${plans.length})`}
-            actions={
-                <Button size="sm" onClick={onAdd}>
-                    <Plus className="size-4" aria-hidden="true" />
-                    Add delivery
-                </Button>
-            }
-        >
-            {plans.length === 0 ? (
-                <EmptyState
-                    title="No delivery plans"
-                    description="Split the order into one or more scheduled deliveries."
+            {itemDialog && (
+                <ItemDialog
+                    orderId={order.id}
+                    initial={itemDialog.mode === 'edit' ? itemDialog.item : null}
+                    onClose={() => setItemDialog(null)}
                 />
-            ) : (
-                <ul className="divide-y divide-slate-100">
-                    {plans.map((p) => (
-                        <li key={p.id} className="flex items-start gap-3 py-3">
-                            <span
-                                className={cn(
-                                    'grid size-9 shrink-0 place-items-center rounded-lg',
-                                    p.status === 'delivered' && 'bg-emerald-100 text-emerald-700',
-                                    p.status === 'dispatched' && 'bg-indigo-100 text-indigo-700',
-                                    p.status === 'scheduled' && 'bg-slate-100 text-slate-500',
-                                )}
-                            >
-                                <Truck className="size-4" aria-hidden="true" />
-                            </span>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <p className="font-medium text-slate-800">
-                                        {fmtDate(p.scheduledDate)}
-                                    </p>
-                                    <Badge
-                                        tone={
-                                            p.status === 'delivered'
-                                                ? 'emerald'
-                                                : p.status === 'dispatched'
-                                                    ? 'indigo'
-                                                    : 'neutral'
-                                        }
-                                    >
-                                        {p.status}
-                                    </Badge>
-                                </div>
-                                <p className="mt-0.5 text-xs text-slate-500">
-                                    {p.quantity} units · {p.address}
-                                </p>
-                                {p.notes && (
-                                    <p className="mt-1 text-sm text-slate-600">{p.notes}</p>
-                                )}
-                            </div>
-                            <Button size="sm" variant="ghost">
-                                <Pencil className="size-4" aria-hidden="true" />
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
             )}
-        </Card>
+            {deleteItem && (
+                <DeleteItemDialog
+                    orderId={order.id}
+                    item={deleteItem}
+                    onClose={() => setDeleteItem(null)}
+                />
+            )}
+            {reserveOpen && (
+                <ReserveDialog
+                    orderId={order.id}
+                    onClose={() => setReserveOpen(false)}
+                />
+            )}
+            {dispatchOpen && (
+                <DispatchDialog
+                    orderId={order.id}
+                    items={order.items}
+                    onClose={() => setDispatchOpen(false)}
+                />
+            )}
+            {cancelOpen && (
+                <CancelDialog
+                    orderId={order.id}
+                    onClose={() => setCancelOpen(false)}
+                />
+            )}
+        </div>
     );
 }
 
-/* --------------------------------- MRP --------------------------------- */
+// ---------------------------------------------------------------------------
+// Stepper
+// ---------------------------------------------------------------------------
 
-function MrpTab({ rows }: { rows: MrpRow[] }) {
-    return (
-        <Card title={`Material Readiness (${rows.length})`}>
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th className="px-3 py-2 text-left font-semibold">Item</th>
-                            <th className="px-3 py-2 text-right font-semibold">Required</th>
-                            <th className="px-3 py-2 text-right font-semibold">Available</th>
-                            <th className="px-3 py-2 text-right font-semibold">Reserved</th>
-                            <th className="px-3 py-2 text-right font-semibold">Shortage</th>
-                            <th className="px-3 py-2 text-left font-semibold">Depends on</th>
-                            <th className="px-3 py-2 text-left font-semibold">ETA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((r) => {
-                            const short = r.shortage > 0;
-                            return (
-                                <tr
-                                    key={r.productId}
-                                    className={cn(
-                                        'border-t border-slate-100',
-                                        short && 'bg-red-50/50',
-                                    )}
-                                    title={
-                                        short
-                                            ? `Short by ${r.shortage}; dependency: ${r.depends}`
-                                            : 'Fully available'
-                                    }
-                                >
-                                    <td className="px-3 py-2 font-medium text-slate-800">
-                                        {r.description}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">{r.required}</td>
-                                    <td className="px-3 py-2 text-right">{r.available}</td>
-                                    <td className="px-3 py-2 text-right">{r.reserved}</td>
-                                    <td
-                                        className={cn(
-                                            'px-3 py-2 text-right',
-                                            short
-                                                ? 'font-semibold text-red-600'
-                                                : 'text-slate-500',
-                                        )}
-                                    >
-                                        {r.shortage || '—'}
-                                    </td>
-                                    <td className="px-3 py-2 text-xs text-slate-600">
-                                        {r.depends}
-                                    </td>
-                                    <td className="px-3 py-2 text-xs text-slate-600">
-                                        {r.procurementEta ? fmtDate(r.procurementEta) : '—'}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+function Stepper({ status }: { status: OrderApiStatus }) {
+    if (status === 'cancelled') {
+        return (
+            <div className="flex items-center gap-2 text-sm text-rose-600">
+                <Ban className="size-4" aria-hidden="true" />
+                <span className="font-semibold">Cancelled</span>
             </div>
-            {rows.some((r) => r.shortage > 0) && (
-                <p className="mt-3 flex items-center gap-2 text-xs text-red-600">
-                    <AlertTriangle className="size-3.5" aria-hidden="true" />
-                    Order has shortages — must be acknowledged before moving to Ready.
-                </p>
-            )}
-        </Card>
-    );
-}
-
-/* ---------------------------- Installation ---------------------------- */
-
-function InstallationTab({ order }: { order: SalesOrder }) {
-    const i = order.installation;
-    const items: Array<{
-        label: string;
-        done: boolean;
-    }> = [
-            { label: 'Civil works ready', done: i.civilReady },
-            { label: 'Electrical ready', done: i.electricalReady },
-            { label: 'Customer approvals received', done: i.approvalsReceived },
-        ];
-    const allDone = items.every((x) => x.done);
+        );
+    }
+    const idx = stepperIndex(status);
     return (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-            <Card title="Readiness checklist">
-                <ul className="space-y-2">
-                    {items.map((it) => (
-                        <li
-                            key={it.label}
+        <ol className="flex flex-wrap items-center gap-2 text-xs">
+            {STEPPER.map((s, i) => {
+                const done = i < idx;
+                const active = i === idx;
+                return (
+                    <li key={s} className="flex items-center gap-2">
+                        <span
                             className={cn(
-                                'flex items-center justify-between rounded-lg border p-3',
-                                it.done
-                                    ? 'border-emerald-200 bg-emerald-50'
-                                    : 'border-amber-200 bg-amber-50',
+                                'flex size-6 items-center justify-center rounded-full border text-[11px] font-semibold',
+                                done && 'border-emerald-500 bg-emerald-500 text-white',
+                                active && 'border-primary bg-primary text-white',
+                                !done && !active && 'border-slate-300 bg-white text-slate-400',
                             )}
                         >
-                            <span className="text-sm font-medium text-slate-800">
-                                {it.label}
-                            </span>
-                            <Badge tone={it.done ? 'emerald' : 'amber'}>
-                                {it.done ? 'Done' : 'Pending'}
-                            </Badge>
-                        </li>
-                    ))}
-                </ul>
-                {!allDone && (
-                    <p className="mt-3 flex items-center gap-2 text-xs text-amber-700">
-                        <AlertTriangle className="size-3.5" aria-hidden="true" />
-                        All items must be done before moving to Installed.
-                    </p>
-                )}
-                {i.notes && (
-                    <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                        <p className="text-xs font-semibold uppercase text-slate-400">
-                            Site notes
-                        </p>
-                        <p className="mt-1">{i.notes}</p>
-                    </div>
-                )}
-            </Card>
-            <Card title="Site details">
-                <dl className="space-y-3 text-sm">
-                    <div>
-                        <dt className="text-xs font-semibold uppercase text-slate-400">
-                            Site address
-                        </dt>
-                        <dd className="mt-0.5 flex items-start gap-1.5 text-slate-700">
-                            <MapPin
-                                className="mt-0.5 size-3.5 shrink-0 text-slate-400"
-                                aria-hidden="true"
-                            />
-                            <span>{order.siteAddress}</span>
-                        </dd>
-                    </div>
-                    <div>
-                        <dt className="text-xs font-semibold uppercase text-slate-400">
-                            Site contact
-                        </dt>
-                        <dd className="mt-0.5 text-slate-700">{i.siteContactName}</dd>
-                        <dd className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <Phone className="size-3" aria-hidden="true" />
-                            {i.siteContactMobile}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt className="text-xs font-semibold uppercase text-slate-400">
-                            Expected installation
-                        </dt>
-                        <dd className="mt-0.5 flex items-center gap-1.5 text-slate-700">
-                            <Calendar className="size-3.5 text-slate-400" aria-hidden="true" />
-                            {fmtDate(i.expectedInstallationDate)}
-                        </dd>
-                    </div>
-                </dl>
-            </Card>
+                            {done ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : i + 1}
+                        </span>
+                        <span
+                            className={cn(
+                                'font-medium',
+                                active ? 'text-slate-900' : 'text-slate-500',
+                            )}
+                        >
+                            {STATUS_LABEL[s]}
+                        </span>
+                        {i < STEPPER.length - 1 && (
+                            <span className="mx-1 h-px w-6 bg-slate-200" aria-hidden="true" />
+                        )}
+                    </li>
+                );
+            })}
+            {status === 'partially_dispatched' && (
+                <Badge tone="amber" className="ml-2">
+                    Partially dispatched
+                </Badge>
+            )}
+        </ol>
+    );
+}
+
+function Tile({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {label}
+            </p>
+            <p className={cn('mt-1 text-slate-800', bold ? 'text-lg font-semibold' : 'text-sm')}>
+                {value}
+            </p>
         </div>
     );
 }
 
-/* ---------------------------- Documents ---------------------------- */
+// ---------------------------------------------------------------------------
+// Items tab
+// ---------------------------------------------------------------------------
 
-const DOC_ICON: Record<OrderDocument['type'], typeof FileText> = {
-    quotation: FileText,
-    customer_po: FileText,
-    delivery_note: Truck,
-    invoice: FileText,
-    installation_report: Wrench,
-};
+function ItemsTab({
+    order,
+    onAdd,
+    onEdit,
+    onDelete,
+}: {
+    order: { id: string; status: OrderApiStatus; items: OrderItem[] };
+    onAdd: () => void;
+    onEdit: (it: OrderItem) => void;
+    onDelete: (it: OrderItem) => void;
+}) {
+    const editable = !isTerminal(order.status) && order.status !== 'fully_dispatched';
 
-const DOC_TONE: Record<OrderDocument['type'], 'blue' | 'emerald' | 'indigo' | 'violet' | 'amber'> = {
-    quotation: 'blue',
-    customer_po: 'emerald',
-    delivery_note: 'indigo',
-    invoice: 'violet',
-    installation_report: 'amber',
-};
-
-function InvoicesTab({ orderId, onRaise }: { orderId: string; onRaise: () => void }) {
-    const rows = invoicesForOrder(orderId);
     return (
-        <Card
-            title={`Invoices (${rows.length})`}
-            actions={
-                <Button size="sm" variant="primary" onClick={onRaise}>
-                    <Plus className="size-3.5" /> New invoice
-                </Button>
-            }
-        >
-            <CustomerInvoiceTable rows={rows} hideColumns={['customer', 'order']} />
-        </Card>
-    );
-}
+        <div>
+            <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-700">
+                    {order.items.length} line item{order.items.length === 1 ? '' : 's'}
+                </h2>
+                {editable && (
+                    <Button size="sm" onClick={onAdd}>
+                        <Plus className="size-4" aria-hidden="true" /> Add item
+                    </Button>
+                )}
+            </div>
 
-function DocumentsTab({ documents }: { documents: OrderDocument[] }) {
-    return (
-        <Card title={`Documents (${documents.length})`}>
-            {documents.length === 0 ? (
+            {order.items.length === 0 ? (
                 <EmptyState
-                    title="No documents linked yet"
-                    description="Quotations, POs, delivery notes and invoices will appear here."
+                    title="No items"
+                    description="Add line items to this order."
                 />
             ) : (
-                <ul className="divide-y divide-slate-100">
-                    {documents.map((d) => {
-                        const Icon = DOC_ICON[d.type];
-                        return (
-                            <li key={d.id} className="flex items-start gap-3 py-3">
-                                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500">
-                                    <Icon className="size-4" aria-hidden="true" />
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <tr>
+                                <th className="px-3 py-2 text-left">Description</th>
+                                <th className="px-3 py-2 text-right">Ordered</th>
+                                <th className="px-3 py-2 text-right">Dispatched</th>
+                                <th className="px-3 py-2 text-right">Pending</th>
+                                <th className="px-3 py-2 text-right">Unit price</th>
+                                <th className="px-3 py-2 text-right">Disc %</th>
+                                <th className="px-3 py-2 text-right">Line total</th>
+                                {editable && <th className="px-3 py-2"></th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {order.items.map((it) => (
+                                <tr key={it.id}>
+                                    <td className="px-3 py-2">
                                         <p className="font-medium text-slate-800">
-                                            {d.label}
+                                            {it.productDescription || '—'}
                                         </p>
-                                        <Badge tone={DOC_TONE[d.type]}>
-                                            {d.type.replace('_', ' ')}
-                                        </Badge>
-                                    </div>
-                                    <p className="text-xs text-slate-500">
-                                        {d.refNumber} · uploaded {formatRelative(d.uploadedAt)}
-                                    </p>
-                                </div>
-                                <Button size="sm" variant="ghost">
-                                    View
-                                </Button>
-                            </li>
-                        );
-                    })}
-                </ul>
+                                        {it.notes && (
+                                            <p className="text-xs text-slate-500">{it.notes}</p>
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {fmtNum(it.quantityOrdered)} {it.unit}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {fmtNum(it.quantityDispatched)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {fmtNum(it.quantityPending)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {formatINR(it.unitPrice)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-slate-700">
+                                        {fmtNum(it.discountPercent)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-semibold text-slate-800">
+                                        {formatINR(it.lineTotal)}
+                                    </td>
+                                    {editable && (
+                                        <td className="px-3 py-2 text-right">
+                                            <div className="inline-flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => onEdit(it)}
+                                                    aria-label={`Edit ${it.productDescription}`}
+                                                >
+                                                    <Pencil className="size-4" aria-hidden="true" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => onDelete(it)}
+                                                    aria-label={`Delete ${it.productDescription}`}
+                                                >
+                                                    <Trash2 className="size-4" aria-hidden="true" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
-        </Card>
+        </div>
     );
 }
 
-/* ----------------------------- Activity ----------------------------- */
+// ---------------------------------------------------------------------------
+// MRP tab
+// ---------------------------------------------------------------------------
 
-const ACT_ICON: Record<OrderActivity['type'], typeof Package> = {
-    stage_change: Package,
-    note: FileText,
-    dispatch: Truck,
-    cancel: Ban,
-    amendment: Pencil,
-    invoice: FileText,
-    readiness: CheckCircle2,
-};
-
-function ActivityTab({ activity }: { activity: OrderActivity[] }) {
-    const sorted = useMemo(
-        () =>
-            [...activity].sort(
-                (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
-            ),
-        [activity],
-    );
+function MrpTab({ orderId }: { orderId: string }) {
+    const mrp = useOrderMrp(orderId);
+    if (mrp.isLoading) {
+        return (
+            <div className="flex items-center justify-center px-6 py-12 text-sm text-slate-500">
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                Loading availability…
+            </div>
+        );
+    }
+    if (mrp.isError) {
+        return (
+            <ErrorAlert
+                variant="danger"
+                title="Failed to load MRP"
+                description={extractErrorMessage(mrp.error)}
+            />
+        );
+    }
+    if (!mrp.data || mrp.data.items.length === 0) {
+        return <EmptyState title="No items" description="Add items to view material readiness." />;
+    }
     return (
-        <Card title={`Activity (${activity.length})`}>
-            <ol className="relative space-y-4 border-l border-slate-200 pl-6">
-                {sorted.map((a) => {
-                    const Icon = ACT_ICON[a.type];
-                    return (
-                        <li key={a.id} className="relative">
-                            <span className="absolute -left-[34px] grid size-7 place-items-center rounded-full border border-slate-200 bg-white text-slate-500">
-                                <Icon className="size-3.5" aria-hidden="true" />
-                            </span>
-                            <p className="text-sm text-slate-800">{a.summary}</p>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                                {userById(a.actorId)?.name ?? '—'} ·{' '}
-                                <span title={fmtDateTime(a.at)}>
-                                    {formatRelative(a.at)}
-                                </span>
-                            </p>
-                        </li>
-                    );
-                })}
-            </ol>
-        </Card>
+        <div>
+            <div className="mb-3 flex items-center gap-2">
+                {mrp.data.allReady ? (
+                    <Badge tone="emerald">All ready</Badge>
+                ) : (
+                    <Badge tone="amber">Shortage</Badge>
+                )}
+            </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+                <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th className="px-3 py-2 text-left">Item</th>
+                            <th className="px-3 py-2 text-right">Required</th>
+                            <th className="px-3 py-2 text-right">On hand</th>
+                            <th className="px-3 py-2 text-right">Reserved</th>
+                            <th className="px-3 py-2 text-right">Available</th>
+                            <th className="px-3 py-2 text-right">Shortfall</th>
+                            <th className="px-3 py-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {mrp.data.items.map((r) => (
+                            <tr key={r.itemId}>
+                                <td className="px-3 py-2 font-medium text-slate-800">
+                                    {r.productDescription || `#${r.itemId}`}
+                                </td>
+                                <td className="px-3 py-2 text-right text-slate-700">{fmtNum(r.requiredQty)}</td>
+                                <td className="px-3 py-2 text-right text-slate-700">{fmtNum(r.onHand)}</td>
+                                <td className="px-3 py-2 text-right text-slate-700">{fmtNum(r.reserved)}</td>
+                                <td className="px-3 py-2 text-right text-slate-700">{fmtNum(r.available)}</td>
+                                <td className="px-3 py-2 text-right">
+                                    {Number(r.shortfall) > 0 ? (
+                                        <span className="font-semibold text-rose-600">{fmtNum(r.shortfall)}</span>
+                                    ) : (
+                                        <span className="text-slate-400">—</span>
+                                    )}
+                                </td>
+                                <td className="px-3 py-2">
+                                    {r.ready ? (
+                                        <Badge tone="emerald">Ready</Badge>
+                                    ) : (
+                                        <Badge tone="amber">Short</Badge>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }
 
-/* --------------------------- Stage advance --------------------------- */
+// ---------------------------------------------------------------------------
+// Item add/edit dialog
+// ---------------------------------------------------------------------------
 
-function StageAdvanceDialog({
-    open,
-    onOpenChange,
-    order,
-    target,
-    hasShortage,
-    installationReady,
-    onConfirm,
+function ItemDialog({
+    orderId,
+    initial,
+    onClose,
 }: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    order: SalesOrder;
-    target: OrderStage | null;
-    hasShortage: boolean;
-    installationReady: boolean;
-    onConfirm: () => void;
+    orderId: string;
+    initial: OrderItem | null;
+    onClose: () => void;
 }) {
-    const [ackShortage, setAckShortage] = useState(false);
-    if (!target) return null;
-    const blockedByShortage = target === 'ready' && hasShortage && !ackShortage;
-    const blockedByInstallation = target === 'installed' && !installationReady;
-    const blocked = blockedByShortage || blockedByInstallation;
-
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(o) => {
-                onOpenChange(o);
-                if (!o) setAckShortage(false);
-            }}
-        >
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Advance to {stageLabel(target)}</DialogTitle>
-                    <DialogDescription>
-                        {order.orderNumber} is currently{' '}
-                        <strong>{stageLabel(order.stage)}</strong>. Confirm the
-                        transition to <strong>{stageLabel(target)}</strong>.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogBody className="space-y-3">
-                    {target === 'ready' && hasShortage && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
-                            <p className="flex items-center gap-2 font-medium text-red-700">
-                                <AlertTriangle className="size-4" aria-hidden="true" />
-                                Shortages detected
-                            </p>
-                            <p className="mt-1 text-xs text-red-600">
-                                One or more items are not fully reserved. Acknowledge to
-                                proceed — partial fulfilment will be recorded.
-                            </p>
-                            <label className="mt-2 inline-flex items-center gap-2 text-xs text-red-700">
-                                <input
-                                    type="checkbox"
-                                    checked={ackShortage}
-                                    onChange={(e) => setAckShortage(e.target.checked)}
-                                    className="size-3.5 rounded border-red-300"
-                                />
-                                I acknowledge the shortage and confirm partial fulfilment.
-                            </label>
-                        </div>
-                    )}
-                    {target === 'installed' && !installationReady && (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                            <p className="flex items-center gap-2 font-medium">
-                                <AlertTriangle className="size-4" aria-hidden="true" />
-                                Installation checklist incomplete
-                            </p>
-                            <p className="mt-1 text-xs">
-                                Complete all checklist items (civil, electrical, approvals)
-                                before marking as Installed.
-                            </p>
-                        </div>
-                    )}
-                </DialogBody>
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        disabled={blocked}
-                        onClick={onConfirm}
-                    >
-                        Confirm
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/* ----------------------------- Cancel ----------------------------- */
-
-function CancelOrderDialog({
-    open,
-    onOpenChange,
-    order,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    order: SalesOrder;
-}) {
+    const isEdit = !!initial;
+    const addMut = useAddOrderItem(orderId);
+    const updateMut = useUpdateOrderItem(orderId);
     const { push } = useToast();
-    const [reason, setReason] = useState('');
-    const [submitting, setSubmitting] = useState(false);
 
-    async function handleSubmit() {
-        setSubmitting(true);
-        await new Promise((r) => setTimeout(r, 500));
-        setSubmitting(false);
-        push({
-            variant: 'warning',
-            title: 'Cancellation requested',
-            description: `${order.orderNumber} awaiting approval.`,
-        });
-        onOpenChange(false);
-        setReason('');
+    const [description, setDescription] = useState(initial?.productDescription ?? '');
+    const [quantity, setQuantity] = useState(String(initial?.quantityOrdered ?? '1'));
+    const [unit, setUnit] = useState(initial?.unit ?? 'nos');
+    const [unitPrice, setUnitPrice] = useState(String(initial?.unitPrice ?? '0'));
+    const [discount, setDiscount] = useState(String(initial?.discountPercent ?? '0'));
+    const [notes, setNotes] = useState(initial?.notes ?? '');
+
+    const submitting = addMut.isPending || updateMut.isPending;
+    const valid =
+        description.trim().length > 0 &&
+        Number(quantity) > 0 &&
+        Number(unitPrice) >= 0 &&
+        unit.trim().length > 0;
+
+    async function submit() {
+        const payload: OrderItemWritePayload = {
+            productDescription: description.trim(),
+            quantityOrdered: Number(quantity),
+            unit: unit.trim(),
+            unitPrice: Number(unitPrice),
+            discountPercent: Number(discount) || 0,
+            notes: notes.trim(),
+        };
+        try {
+            if (isEdit && initial) {
+                await updateMut.mutateAsync({ id: initial.id, payload });
+                push({ variant: 'success', title: 'Item updated' });
+            } else {
+                await addMut.mutateAsync(payload);
+                push({ variant: 'success', title: 'Item added' });
+            }
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: isEdit ? 'Update failed' : 'Add failed',
+                description: extractErrorMessage(e),
+            });
+        }
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Cancel order</DialogTitle>
-                    <DialogDescription>
-                        Cancellations require sales manager approval.
-                    </DialogDescription>
+                    <DialogTitle>{isEdit ? 'Edit item' : 'Add item'}</DialogTitle>
                 </DialogHeader>
-                <DialogBody>
-                    <FormField label="Reason" required>
-                        <Textarea
-                            rows={4}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder="Why is this order being cancelled?"
+                <DialogBody className="space-y-3">
+                    <FormField label="Description" required>
+                        <Input
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Product description"
                         />
                     </FormField>
-                </DialogBody>
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                        disabled={submitting}
-                    >
-                        Back
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={!reason.trim() || submitting}
-                    >
-                        {submitting && (
-                            <Loader2
-                                className="size-4 animate-spin"
-                                aria-hidden="true"
+                    <div className="grid grid-cols-2 gap-3">
+                        <FormField label="Quantity" required>
+                            <Input
+                                type="number"
+                                step="0.001"
+                                min="0"
+                                value={quantity}
+                                onChange={(e) => setQuantity(e.target.value)}
                             />
-                        )}
-                        Request cancellation
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/* ---------------------------- Amendment ---------------------------- */
-
-function AmendmentDialog({
-    open,
-    onOpenChange,
-    order,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    order: SalesOrder;
-}) {
-    const { push } = useToast();
-    const [reason, setReason] = useState('');
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Request amendment</DialogTitle>
-                    <DialogDescription>
-                        Amendments freeze the order until approved; procurement may be
-                        paused.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogBody>
-                    <FormField label="Change requested" required>
-                        <Textarea
-                            rows={4}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder="Describe the change (qty / price / delivery date)…"
-                        />
-                    </FormField>
-                </DialogBody>
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        disabled={!reason.trim()}
-                        onClick={() => {
-                            push({
-                                variant: 'info',
-                                title: 'Amendment requested',
-                                description: `${order.orderNumber} pending approval.`,
-                            });
-                            onOpenChange(false);
-                            setReason('');
-                        }}
-                    >
-                        Request
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/* ------------------------- Create dispatch ------------------------- */
-
-function CreateDispatchDialog({
-    open,
-    onOpenChange,
-    order,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    order: SalesOrder;
-}) {
-    const { push } = useToast();
-    const navigate = useNavigate();
-    const [scheduledDate, setScheduledDate] = useState(
-        order.expectedDeliveryDate.slice(0, 10),
-    );
-    const [vehicle, setVehicle] = useState('');
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Create dispatch</DialogTitle>
-                    <DialogDescription>
-                        A delivery note draft will be created from this order.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogBody className="space-y-3">
-                    <FormField label="Scheduled dispatch date" required>
-                        <Input
-                            type="date"
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                        />
-                    </FormField>
-                    <FormField label="Vehicle / transporter">
-                        <Input
-                            value={vehicle}
-                            onChange={(e) => setVehicle(e.target.value)}
-                            placeholder="e.g. GJ-05-AB-1234 / Gati"
-                        />
-                    </FormField>
-                    <div className="flex items-center gap-2 rounded-md bg-slate-50 p-2 text-xs text-slate-600">
-                        <Clock className="size-3.5" aria-hidden="true" />
-                        Items not fully reserved will remain on backorder.
+                        </FormField>
+                        <FormField label="Unit" required>
+                            <Input value={unit} onChange={(e) => setUnit(e.target.value)} />
+                        </FormField>
                     </div>
-                </DialogBody>
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={() => {
-                            push({
-                                variant: 'success',
-                                title: 'Dispatch draft created',
-                                description: `DN for ${order.orderNumber} — opening dispatch module.`,
-                            });
-                            onOpenChange(false);
-                            navigate('/dispatch');
-                        }}
-                    >
-                        Create dispatch
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/* -------------------------- Raise invoice -------------------------- */
-// Replaced by shared CustomerInvoiceForm.
-
-/* ------------------------- Add delivery plan ------------------------- */
-
-function AddDeliveryDialog({
-    open,
-    onOpenChange,
-    order,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    order: SalesOrder;
-}) {
-    const { push } = useToast();
-    const [scheduledDate, setScheduledDate] = useState('');
-    const [quantity, setQuantity] = useState('');
-    const [address, setAddress] = useState(order.siteAddress);
-    const [notes, setNotes] = useState('');
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Add delivery plan</DialogTitle>
-                    <DialogDescription>
-                        Split the order into an additional scheduled delivery.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogBody className="space-y-3">
-                    <FormField label="Scheduled date" required>
-                        <Input
-                            type="date"
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                        />
-                    </FormField>
-                    <FormField label="Quantity" required>
-                        <Input
-                            type="number"
-                            min={1}
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                        />
-                    </FormField>
-                    <FormField label="Delivery address" required>
+                    <div className="grid grid-cols-2 gap-3">
+                        <FormField label="Unit price" required>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={unitPrice}
+                                onChange={(e) => setUnitPrice(e.target.value)}
+                            />
+                        </FormField>
+                        <FormField label="Discount %">
+                            <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={discount}
+                                onChange={(e) => setDiscount(e.target.value)}
+                            />
+                        </FormField>
+                    </div>
+                    <FormField label="Notes">
                         <Textarea
                             rows={2}
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                        />
-                    </FormField>
-                    <FormField label="Notes">
-                        <Input
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                         />
                     </FormField>
                 </DialogBody>
                 <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
+                    <Button variant="ghost" onClick={onClose} disabled={submitting}>
                         Cancel
                     </Button>
-                    <Button
-                        type="button"
-                        disabled={!scheduledDate || !quantity}
-                        onClick={() => {
-                            push({
-                                variant: 'success',
-                                title: 'Delivery added',
-                                description: `${quantity} units on ${fmtDate(scheduledDate)}.`,
-                            });
-                            onOpenChange(false);
-                        }}
-                    >
-                        Add delivery
+                    <Button onClick={submit} disabled={!valid || submitting}>
+                        {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add item'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1366,56 +733,248 @@ function AddDeliveryDialog({
     );
 }
 
-/* ----------------------------- Helpers ----------------------------- */
-
-function Card({
-    title,
-    actions,
-    children,
-    className,
+function DeleteItemDialog({
+    orderId,
+    item,
+    onClose,
 }: {
-    title?: string;
-    actions?: React.ReactNode;
-    children: React.ReactNode;
-    className?: string;
+    orderId: string;
+    item: OrderItem;
+    onClose: () => void;
 }) {
+    const mut = useDeleteOrderItem(orderId);
+    const { push } = useToast();
+    async function confirm() {
+        try {
+            await mut.mutateAsync(item.id);
+            push({ variant: 'success', title: 'Item removed' });
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: 'Delete failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
     return (
-        <section
-            className={cn(
-                'rounded-xl border border-slate-200 bg-white p-4',
-                className,
-            )}
-        >
-            {(title || actions) && (
-                <header className="mb-3 flex items-center justify-between gap-3">
-                    {title && (
-                        <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
-                    )}
-                    {actions}
-                </header>
-            )}
-            {children}
-        </section>
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Delete item?</DialogTitle>
+                    <DialogDescription>
+                        Remove “{item.productDescription || 'this item'}” from the order. This
+                        cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} disabled={mut.isPending}>
+                        Cancel
+                    </Button>
+                    <Button onClick={confirm} disabled={mut.isPending}>
+                        {mut.isPending ? 'Deleting…' : 'Delete'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
-function Stat({
-    label,
-    value,
-    valueClassName,
-}: {
-    label: string;
-    value: string;
-    valueClassName?: string;
-}) {
+// ---------------------------------------------------------------------------
+// Reserve / Dispatch / Cancel
+// ---------------------------------------------------------------------------
+
+function ReserveDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+    const [warehouseId, setWarehouseId] = useState('');
+    const mut = useReserveStock(orderId);
+    const { push } = useToast();
+    async function submit() {
+        try {
+            const r = await mut.mutateAsync(warehouseId);
+            const reserved = r.reservations.filter((x) => !x.skipped).length;
+            const skipped = r.reservations.length - reserved;
+            push({
+                variant: 'success',
+                title: `Reserved ${reserved}${skipped ? ` (${skipped} skipped)` : ''}`,
+            });
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: 'Reserve failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
     return (
-        <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                {label}
-            </p>
-            <p className={cn('text-sm font-semibold text-slate-700', valueClassName)}>
-                {value}
-            </p>
-        </div>
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reserve stock</DialogTitle>
+                    <DialogDescription>
+                        Soft-reserve required stock from a warehouse for this order.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="Warehouse ID" required>
+                        <Input
+                            type="number"
+                            min="1"
+                            value={warehouseId}
+                            onChange={(e) => setWarehouseId(e.target.value)}
+                            placeholder="e.g. 1"
+                        />
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} disabled={mut.isPending}>
+                        Cancel
+                    </Button>
+                    <Button onClick={submit} disabled={!warehouseId || mut.isPending}>
+                        {mut.isPending ? 'Reserving…' : 'Reserve'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function DispatchDialog({
+    orderId,
+    items,
+    onClose,
+}: {
+    orderId: string;
+    items: OrderItem[];
+    onClose: () => void;
+}) {
+    const pending = items.filter((it) => Number(it.quantityPending) > 0);
+    const [qty, setQty] = useState<Record<string, string>>(() =>
+        Object.fromEntries(pending.map((it) => [it.id, String(it.quantityPending)])),
+    );
+    const mut = useDispatchItems(orderId);
+    const { push } = useToast();
+
+    const lines = pending
+        .map((it) => ({ itemId: it.id, quantity: Number(qty[it.id] || 0) }))
+        .filter((l) => l.quantity > 0);
+
+    async function submit() {
+        try {
+            const updated = await mut.mutateAsync(lines);
+            push({
+                variant: 'success',
+                title: 'Dispatch recorded',
+                description: `Stage is now ${STATUS_LABEL[updated.status]}.`,
+            });
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: 'Dispatch failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
+
+    return (
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Dispatch items</DialogTitle>
+                    <DialogDescription>
+                        Record dispatched quantities. Pending values default to full pending qty.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    {pending.length === 0 ? (
+                        <p className="text-sm text-slate-500">Nothing pending to dispatch.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {pending.map((it) => (
+                                <div key={it.id} className="flex items-center gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-slate-800">
+                                            {it.productDescription || `Item #${it.id}`}
+                                        </p>
+                                        <p className="text-xs text-slate-500">
+                                            Pending: {fmtNum(it.quantityPending)} {it.unit}
+                                        </p>
+                                    </div>
+                                    <Input
+                                        type="number"
+                                        step="0.001"
+                                        min="0"
+                                        max={String(it.quantityPending)}
+                                        value={qty[it.id] ?? ''}
+                                        onChange={(e) =>
+                                            setQty((q) => ({ ...q, [it.id]: e.target.value }))
+                                        }
+                                        className="w-28"
+                                        aria-label={`Dispatch qty for ${it.productDescription}`}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} disabled={mut.isPending}>
+                        Cancel
+                    </Button>
+                    <Button onClick={submit} disabled={lines.length === 0 || mut.isPending}>
+                        {mut.isPending ? 'Recording…' : 'Record dispatch'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function CancelDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+    const [reason, setReason] = useState('');
+    const mut = useTransitionStage(orderId);
+    const { push } = useToast();
+    async function submit() {
+        try {
+            await mut.mutateAsync({ nextStage: 'cancelled', cancellationReason: reason.trim() });
+            push({ variant: 'success', title: 'Order cancelled' });
+            onClose();
+        } catch (e) {
+            push({
+                variant: 'danger',
+                title: 'Cancel failed',
+                description: extractErrorMessage(e),
+            });
+        }
+    }
+    return (
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Cancel order</DialogTitle>
+                    <DialogDescription>
+                        Cancellation is final. Provide a reason for audit history.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <FormField label="Reason" required>
+                        <Textarea
+                            rows={3}
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                        />
+                    </FormField>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} disabled={mut.isPending}>
+                        Keep order
+                    </Button>
+                    <Button onClick={submit} disabled={!reason.trim() || mut.isPending}>
+                        {mut.isPending ? 'Cancelling…' : 'Cancel order'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
